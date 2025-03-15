@@ -3,11 +3,9 @@ name: min-timespan-delivery
 
 services:
   devcontainer:
-    build:
-      context: ..
-      dockerfile: .devcontainer/Dockerfile
     command: bash -c "sleep infinity"
     container_name: devcontainer
+    image: ubuntu:24.04
     volumes:
       - ..:/workspaces/min-timespan-delivery
     working_dir: /workspaces/min-timespan-delivery

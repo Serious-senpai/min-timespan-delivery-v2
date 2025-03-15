@@ -10,6 +10,7 @@ use rand::{rng, seq::SliceRandom};
 use serde::de::{SeqAccess, Visitor};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
+use crate::logger::Logger;
 use crate::{
     clusterize,
     config::CONFIG,
@@ -108,12 +109,12 @@ const NEIGHBORHOODS: LazyLock<[Neighborhood; 6]> = LazyLock::new(|| {
     ]
 });
 
-fn penalty_coeff<const N: usize>() -> f64 {
+pub fn penalty_coeff<const N: usize>() -> f64 {
     PENALTY_COEFF[N].load(Ordering::Relaxed)
 }
 
 impl Solution {
-    fn new(
+    pub fn new(
         truck_routes: Vec<Vec<Rc<TruckRoute>>>,
         drone_routes: Vec<Vec<Rc<DroneRoute>>>,
     ) -> Solution {
@@ -167,7 +168,7 @@ impl Solution {
         }
     }
 
-    fn cost(&self) -> f64 {
+    pub fn cost(&self) -> f64 {
         self.working_time
             + penalty_coeff::<0>() * self.energy_violation
             + penalty_coeff::<1>() * self.capacity_violation
@@ -175,7 +176,7 @@ impl Solution {
             + penalty_coeff::<3>() * self.fixed_time_violation
     }
 
-    pub fn initialize() -> Rc<Solution> {
+    pub fn initialize() -> Solution {
         fn _sort_cluster_with_starting_point(cluster: &mut Vec<usize>, mut start: usize) -> () {
             if cluster.is_empty() {
                 return;
@@ -284,7 +285,7 @@ impl Solution {
             }
 
             cluster.shuffle(&mut rng);
-            for &customer in &*cluster {
+            for &customer in cluster.iter() {
                 if truckable[customer] {
                     queue.push(_State {
                         working_time: 0.0,
@@ -299,7 +300,7 @@ impl Solution {
             }
 
             cluster.sort_by(|&i, &j| CONFIG.distances[0][i].total_cmp(&CONFIG.distances[0][j]));
-            for &customer in &*cluster {
+            for &customer in cluster.iter() {
                 if dronable[customer] {
                     queue.push(_State {
                         working_time: 0.0,
@@ -521,20 +522,26 @@ impl Solution {
             }
         }
 
-        Rc::new(Solution::new(truck_routes, drone_routes))
+        Solution::new(truck_routes, drone_routes)
     }
 
-    pub fn tabu_search(root: Rc<Solution>) -> Rc<Solution> {
-        let result = root;
-        let current = root;
-        let elite_set = HashSet::new();
+    pub fn tabu_search(root: Solution, logger: &mut Logger) -> Solution {
+        let result = root.clone();
+        let current = root.clone();
+
+        let mut elite_set = vec![];
+        elite_set.push(&result);
+
         let neighborhood_idx = 0;
-        loop {
-            let neighbor = NEIGHBORHOODS[neighborhood_idx].inter_route(current);
+        for iteration in 1.. {
+            let neighborhood = NEIGHBORHOODS[neighborhood_idx];
+            let neighbor = neighborhood.search(&current, &mut vec![], 0, 0.0);
 
             if elite_set.is_empty() {
                 break;
             }
+
+            logger.log(&current, neighborhood).unwrap();
         }
 
         result

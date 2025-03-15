@@ -11,7 +11,7 @@ pub fn clusterize(customers: &mut Vec<usize>, k: usize) -> Vec<Vec<usize>> {
     let x = &CONFIG.x;
     let y = &CONFIG.y;
     let mut angles = HashMap::<usize, f64>::new();
-    for &customer in &*customers {
+    for &customer in customers.iter() {
         let mut angle = (y[customer] - y[0]).atan2(x[customer] - x[0]);
         if angle < 0.0 {
             angle += 2.0 * std::f64::consts::PI;
@@ -41,7 +41,7 @@ pub fn clusterize(customers: &mut Vec<usize>, k: usize) -> Vec<Vec<usize>> {
     let first = customers.first().unwrap();
     let last = customers.last().unwrap();
     let gap = (angles[last] - angles[first]) / k as f64;
-    for customer in &*customers {
+    for customer in customers.iter() {
         let cluster = min(((angles[customer] - angles[first]) / gap) as usize, k - 1);
         clusters[cluster].push(*customer);
     }

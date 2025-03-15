@@ -19,8 +19,13 @@
                 ],
                 "[rust]": {
                     "editor.tabSize": 4
-                },
+                }
             }
+        }
+    },
+    "features": {
+        "ghcr.io/devcontainers/features/rust:1": {
+            "version": "1.85"
         }
     },
     "dockerComposeFile": "compose.yml",

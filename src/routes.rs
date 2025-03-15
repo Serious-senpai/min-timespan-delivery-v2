@@ -1,11 +1,12 @@
 use std::cell::RefCell;
 use std::collections::HashMap;
-use std::rc::{Rc, Weak};
+use std::fmt;
+use std::rc::Rc;
 
 use crate::config::CONFIG;
 use crate::neighborhoods::Neighborhood;
 
-type _NeighborList<T> = Rc<Vec<Weak<T>>>;
+type _NeighborList<T> = Rc<Vec<(Rc<T>, Vec<usize>)>>;
 type _NeighborhoodCache<T> = RefCell<HashMap<Neighborhood, _NeighborList<T>>>;
 
 #[derive(Debug)]
@@ -39,15 +40,9 @@ impl _RouteData {
     }
 }
 
-pub trait Route {
-    fn new(customers: Vec<usize>) -> Rc<Self>
-    where
-        Self: Sized;
-
-    fn single(customer: usize) -> Rc<Self>
-    where
-        Self: Sized,
-    {
+pub trait Route: fmt::Debug + Sized {
+    fn new(customers: Vec<usize>) -> Rc<Self>;
+    fn single(customer: usize) -> Rc<Self> {
         Self::new(vec![0, customer, 0])
     }
 
@@ -56,190 +51,221 @@ pub trait Route {
     fn capacity_violation(&self) -> f64;
     fn waiting_time_violation(&self) -> f64;
 
-    fn _intra_route_neighbors_cache(&self) -> &_NeighborhoodCache<Self>
-    where
-        Self: Sized;
+    fn _intra_route_neighbors_cache(&self) -> &_NeighborhoodCache<Self>;
 
-    fn _intra_route_impl(&self, neighborhood: Neighborhood) -> _NeighborList<Self>
-    where
-        Self: Sized,
-    {
-        let data = self.data();
-        let length = data.customers.len();
-        let mut results = vec![];
-        let mut buffer = data.customers.clone();
-        match neighborhood {
-            Neighborhood::Move10 => {
-                for i in 1..length - 2 {
-                    for j in i..length - 2 {
-                        buffer.swap(j, j + 1);
-
-                        let ptr = Self::new(buffer.clone());
-                        results.push(Rc::downgrade(&ptr));
-                    }
-
-                    buffer[i..length - 1].rotate_right(1);
-                }
-
-                for i in 2..length - 1 {
-                    for j in (2..i + 1).rev() {
-                        buffer.swap(j - 1, j);
-
-                        let ptr = Self::new(buffer.clone());
-                        results.push(Rc::downgrade(&ptr));
-                    }
-
-                    buffer[1..i + 1].rotate_left(1);
-                }
-            }
-            Neighborhood::Move11 => {
-                for i in 1..length - 2 {
-                    for j in i..length - 2 {
-                        buffer.swap(j, j + 1);
-                        buffer.swap(i, j);
-
-                        let ptr = Self::new(buffer.clone());
-                        results.push(Rc::downgrade(&ptr));
-                    }
-
-                    buffer.swap(i, length - 2);
-                }
-            }
-            Neighborhood::Move20 => {
-                for i in 1..length - 3 {
-                    for j in i + 1..length - 2 {
-                        buffer.swap(j, j + 1);
-                        buffer.swap(j - 1, j);
-
-                        let ptr = Self::new(buffer.clone());
-                        results.push(Rc::downgrade(&ptr));
-                    }
-
-                    buffer[i..length - 1].rotate_right(2);
-                }
-
-                for i in 2..length - 2 {
-                    for j in (1..i).rev() {
-                        buffer.swap(j + 1, j + 2);
-                        buffer.swap(j, j + 2);
-
-                        let ptr = Self::new(buffer.clone());
-                        results.push(Rc::downgrade(&ptr));
-                    }
-
-                    buffer[1..i + 2].rotate_left(2);
-                }
-            }
-            Neighborhood::Move21 => {
-                for i in 1..length - 3 {
-                    for j in i..length - 3 {
-                        buffer.swap(j + 1, j + 2);
-                        buffer.swap(j, j + 1);
-                        buffer.swap(i, j);
-
-                        let ptr = Self::new(buffer.clone());
-                        results.push(Rc::downgrade(&ptr));
-                    }
-
-                    buffer.swap(i, length - 3);
-                    buffer[i + 1..length - 1].rotate_right(1);
-                }
-
-                for i in 2..length - 2 {
-                    for j in (1..i).rev() {
-                        buffer.swap(j + 1, j + 2);
-                        buffer.swap(j, j + 2);
-                        buffer.swap(j + 2, i + 1);
-
-                        let ptr = Self::new(buffer.clone());
-                        results.push(Rc::downgrade(&ptr));
-                    }
-
-                    buffer.swap(1, i + 1);
-                    buffer[2..i + 2].rotate_left(1);
-                }
-            }
-            Neighborhood::Move22 => {
-                for i in 1..length - 4 {
-                    {
-                        buffer.swap(i, i + 2);
-                        buffer.swap(i + 1, i + 3);
-
-                        let ptr = Self::new(buffer.clone());
-                        results.push(Rc::downgrade(&ptr));
-                    }
-
-                    for j in i + 3..length - 2 {
-                        buffer.swap(i, i + 1);
-                        buffer.swap(i + 1, j + 1);
-                        buffer.swap(j, j + 1);
-                        buffer.swap(j - 1, j);
-
-                        let ptr = Self::new(buffer.clone());
-                        results.push(Rc::downgrade(&ptr));
-                    }
-
-                    buffer.swap(i, length - 3);
-                    buffer.swap(i + 1, length - 2);
-                }
-            }
-            Neighborhood::TwoOpt => {
-                for i in 1..length - 2 {
-                    {
-                        buffer.swap(i, i + 1);
-
-                        let ptr = Self::new(buffer.clone());
-                        results.push(Rc::downgrade(&ptr));
-                    }
-
-                    for j in i + 2..length - 1 {
-                        buffer[i..j + 1].rotate_right(1);
-
-                        let ptr = Self::new(buffer.clone());
-                        results.push(Rc::downgrade(&ptr));
-                    }
-
-                    buffer[i..length - 1].reverse();
-                }
-            }
-        }
-
-        Rc::new(results)
-    }
-
-    fn push(&self, customer: usize) -> Rc<Self>
-    where
-        Self: Sized,
-    {
+    fn push(&self, customer: usize) -> Rc<Self> {
         let customers = &self.data().customers;
         let mut new_customers = customers.clone();
         new_customers.insert(customers.len() - 1, customer);
         Self::new(new_customers)
     }
 
-    fn pop(&self) -> Rc<Self>
-    where
-        Self: Sized,
-    {
+    fn pop(&self) -> Rc<Self> {
         let customers = &self.data().customers;
         let mut new_customers = customers.clone();
         new_customers.remove(customers.len() - 2);
         Self::new(new_customers)
     }
 
-    fn intra_route(&self, neighborhood: Neighborhood) -> _NeighborList<Self>
-    where
-        Self: Sized,
-    {
-        let mut cache = self
-            ._intra_route_neighbors_cache()
-            .try_borrow_mut()
-            .ok()
-            .unwrap();
+    /// Returns a pointer to the underlying cached intra-route neighbors.
+    fn intra_route(&self, neighborhood: Neighborhood) -> _NeighborList<Self> {
+        fn _intra_route_impl<T>(data: &_RouteData, neighborhood: Neighborhood) -> _NeighborList<T>
+        where
+            T: Route,
+        {
+            let length = data.customers.len();
+            let mut results = vec![];
+            let mut buffer = data.customers.clone();
+            println!(
+                "_intra_route_impl: {:?}, move = {}",
+                data.customers,
+                neighborhood.to_string()
+            );
+            match neighborhood {
+                Neighborhood::Move10 => {
+                    for i in 1..length - 2 {
+                        for j in i..length - 2 {
+                            buffer.swap(j, j + 1);
+
+                            let ptr = T::new(buffer.clone());
+                            let tabu = vec![data.customers[i]];
+                            // println!("buffer = {:?}, tabu = {:?}", buffer, tabu);
+                            results.push((ptr, tabu));
+                        }
+
+                        buffer[i..length - 1].rotate_right(1);
+                    }
+
+                    for i in 2..length - 1 {
+                        for j in (2..i + 1).rev() {
+                            buffer.swap(j - 1, j);
+
+                            let ptr = T::new(buffer.clone());
+                            let tabu = vec![data.customers[i]];
+                            // println!("buffer = {:?}, tabu = {:?}", buffer, tabu);
+                            results.push((ptr, tabu));
+                        }
+
+                        buffer[1..i + 1].rotate_left(1);
+                    }
+                }
+                Neighborhood::Move11 => {
+                    for i in 1..length - 2 {
+                        for j in i..length - 2 {
+                            buffer.swap(j, j + 1);
+                            buffer.swap(i, j);
+
+                            let ptr = T::new(buffer.clone());
+                            let tabu = vec![data.customers[i], data.customers[j + 1]];
+                            // println!("buffer = {:?}, tabu = {:?}", buffer, tabu);
+                            results.push((ptr, tabu));
+                        }
+
+                        buffer.swap(i, length - 2);
+                    }
+                }
+                Neighborhood::Move20 => {
+                    for i in 1..length - 3 {
+                        for j in i + 1..length - 2 {
+                            buffer.swap(j, j + 1);
+                            buffer.swap(j - 1, j);
+
+                            let ptr = T::new(buffer.clone());
+                            let tabu = vec![data.customers[i], data.customers[i + 1]];
+                            // println!("buffer = {:?}, tabu = {:?}", buffer, tabu);
+                            results.push((ptr, tabu));
+                        }
+
+                        buffer[i..length - 1].rotate_right(2);
+                    }
+
+                    for i in 2..length - 2 {
+                        for j in (1..i).rev() {
+                            buffer.swap(j + 1, j + 2);
+                            buffer.swap(j, j + 2);
+
+                            let ptr = T::new(buffer.clone());
+                            let tabu = vec![data.customers[i], data.customers[i + 1]];
+                            // println!("buffer = {:?}, tabu = {:?}", buffer, tabu);
+                            results.push((ptr, tabu));
+                        }
+
+                        buffer[1..i + 2].rotate_left(2);
+                    }
+                }
+                Neighborhood::Move21 => {
+                    for i in 1..length - 3 {
+                        for j in i..length - 3 {
+                            buffer.swap(j + 1, j + 2);
+                            buffer.swap(j, j + 1);
+                            buffer.swap(i, j);
+
+                            let ptr = T::new(buffer.clone());
+                            let tabu = vec![
+                                data.customers[i],
+                                data.customers[i + 1],
+                                data.customers[j + 2],
+                            ];
+                            // println!("buffer = {:?}, tabu = {:?}", buffer, tabu);
+                            results.push((ptr, tabu));
+                        }
+
+                        buffer.swap(i, length - 3);
+                        buffer[i + 1..length - 1].rotate_right(1);
+                    }
+
+                    for i in 2..length - 2 {
+                        for j in (1..i).rev() {
+                            buffer.swap(j + 1, j + 2);
+                            buffer.swap(j, j + 2);
+                            buffer.swap(j + 2, i + 1);
+
+                            let ptr = T::new(buffer.clone());
+                            let tabu =
+                                vec![data.customers[i], data.customers[i + 1], data.customers[j]];
+                            // println!("buffer = {:?}, tabu = {:?}", buffer, tabu);
+                            results.push((ptr, tabu));
+                        }
+
+                        buffer.swap(1, i + 1);
+                        buffer[2..i + 2].rotate_left(1);
+                    }
+                }
+                Neighborhood::Move22 => {
+                    for i in 1..length.saturating_sub(4) {
+                        {
+                            buffer.swap(i, i + 2);
+                            buffer.swap(i + 1, i + 3);
+
+                            let ptr = T::new(buffer.clone());
+                            let tabu = vec![
+                                data.customers[i],
+                                data.customers[i + 1],
+                                data.customers[i + 2],
+                                data.customers[i + 3],
+                            ];
+                            // println!("buffer = {:?}, tabu = {:?}", buffer, tabu);
+                            results.push((ptr, tabu));
+                        }
+
+                        for j in i + 3..length - 2 {
+                            buffer.swap(i, i + 1);
+                            buffer.swap(i + 1, j + 1);
+                            buffer.swap(j, j + 1);
+                            buffer.swap(j - 1, j);
+
+                            let ptr = T::new(buffer.clone());
+                            let tabu = vec![
+                                data.customers[i],
+                                data.customers[i + 1],
+                                data.customers[j],
+                                data.customers[j + 1],
+                            ];
+                            // println!("buffer = {:?}, tabu = {:?}", buffer, tabu);
+                            results.push((ptr, tabu));
+                        }
+
+                        buffer.swap(i, length - 3);
+                        buffer.swap(i + 1, length - 2);
+                    }
+                }
+                Neighborhood::TwoOpt => {
+                    for i in 1..length - 2 {
+                        {
+                            buffer.swap(i, i + 1);
+
+                            let ptr = T::new(buffer.clone());
+                            let tabu = vec![data.customers[i], data.customers[i + 1]];
+                            // println!("buffer = {:?}, tabu = {:?}", buffer, tabu);
+                            results.push((ptr, tabu));
+                        }
+
+                        for j in i + 2..length - 1 {
+                            buffer[i..j + 1].rotate_right(1);
+
+                            let ptr = T::new(buffer.clone());
+                            let tabu = vec![data.customers[i], data.customers[j]];
+                            // println!("buffer = {:?}, tabu = {:?}", buffer, tabu);
+                            results.push((ptr, tabu));
+                        }
+
+                        buffer[i..length - 1].reverse();
+                    }
+                }
+            }
+
+            for (_, tabu) in results.iter_mut() {
+                tabu.sort();
+            }
+
+            Rc::new(results)
+        }
+
+        let mut cache = self._intra_route_neighbors_cache().borrow_mut();
         match cache.get(&neighborhood) {
             Some(value) => return value.clone(),
             None => {
-                let values = self._intra_route_impl(neighborhood);
+                let values = _intra_route_impl::<Self>(self.data(), neighborhood);
                 cache.insert(neighborhood, values.clone());
                 values
             }
@@ -295,10 +321,7 @@ impl Route for TruckRoute {
         self._waiting_time_violation
     }
 
-    fn _intra_route_neighbors_cache(&self) -> &_NeighborhoodCache<Self>
-    where
-        Self: Sized,
-    {
+    fn _intra_route_neighbors_cache(&self) -> &_NeighborhoodCache<Self> {
         &self._neighbors
     }
 }
@@ -384,10 +407,7 @@ impl Route for DroneRoute {
         self._waiting_time_violation
     }
 
-    fn _intra_route_neighbors_cache(&self) -> &_NeighborhoodCache<Self>
-    where
-        Self: Sized,
-    {
+    fn _intra_route_neighbors_cache(&self) -> &_NeighborhoodCache<Self> {
         &self._neighbors
     }
 }
