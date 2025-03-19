@@ -53,7 +53,7 @@ where
     deserializer.deserialize_seq(visitor)
 }
 
-fn _serialize_routes<S>(routes: &Vec<Vec<Rc<impl Route>>>, serializer: S) -> Result<S::Ok, S::Error>
+fn _serialize_routes<S>(routes: &[Vec<Rc<impl Route>>], serializer: S) -> Result<S::Ok, S::Error>
 where
     S: Serializer,
 {
@@ -98,7 +98,7 @@ static PENALTY_COEFF: LazyLock<[atomic_float::AtomicF64; 4]> = LazyLock::new(|| 
     ]
 });
 
-const NEIGHBORHOODS: LazyLock<[Neighborhood; 6]> = LazyLock::new(|| {
+static NEIGHBORHOODS: LazyLock<[Neighborhood; 6]> = LazyLock::new(|| {
     [
         Neighborhood::Move10,
         Neighborhood::Move11,
@@ -188,7 +188,7 @@ impl Solution {
     }
 
     pub fn hamming_distance(&self, other: &Solution) -> usize {
-        fn fill_repr<T>(vehicle_routes: &Vec<Vec<Rc<T>>>, repr: &mut Vec<usize>)
+        fn fill_repr<T>(vehicle_routes: &Vec<Vec<Rc<T>>>, repr: &mut [usize])
         where
             T: Route,
         {
@@ -218,7 +218,7 @@ impl Solution {
     }
 
     pub fn initialize() -> Solution {
-        fn _sort_cluster_with_starting_point(cluster: &mut Vec<usize>, mut start: usize) {
+        fn _sort_cluster_with_starting_point(cluster: &mut [usize], mut start: usize) {
             if cluster.is_empty() {
                 return;
             }
@@ -227,8 +227,8 @@ impl Solution {
             for i in 0..cluster.len() {
                 let mut min_distance = f64::INFINITY;
                 let mut min_idx = 0;
-                for j in i..cluster.len() {
-                    let d = distance[start][cluster[j]];
+                for (j, &customer) in cluster.iter().enumerate().skip(i) {
+                    let d = distance[start][customer];
                     if d < min_distance {
                         min_distance = d;
                         min_idx = j;
@@ -264,9 +264,14 @@ impl Solution {
         let mut truckable = vec![false; CONFIG.customers_count + 1];
         if CONFIG.trucks_count > 0 {
             truckable[0] = true;
-            for customer in 1..CONFIG.customers_count + 1 {
+            for (customer, truckable) in truckable
+                .iter_mut()
+                .enumerate()
+                .skip(1)
+                .take(CONFIG.customers_count)
+            {
                 truck_routes[0].push(TruckRoute::single(customer));
-                truckable[customer] = _feasible(truck_routes.clone(), drone_routes.clone());
+                *truckable = _feasible(truck_routes.clone(), drone_routes.clone());
                 truck_routes[0].pop();
             }
         }
@@ -274,10 +279,15 @@ impl Solution {
         let mut dronable = vec![false; CONFIG.customers_count + 1];
         if CONFIG.drones_count > 0 {
             dronable[0] = true;
-            for customer in 1..CONFIG.customers_count + 1 {
+            for (customer, dronable) in dronable
+                .iter_mut()
+                .enumerate()
+                .skip(1)
+                .take(CONFIG.customers_count)
+            {
                 if CONFIG.dronable[customer] {
                     drone_routes[0].push(DroneRoute::single(customer));
-                    dronable[customer] = _feasible(truck_routes.clone(), drone_routes.clone());
+                    *dronable = _feasible(truck_routes.clone(), drone_routes.clone());
                     drone_routes[0].pop();
                 }
             }
@@ -358,14 +368,15 @@ impl Solution {
 
         let mut global = BTreeSet::from_iter(1..CONFIG.customers_count + 1);
 
+        #[allow(clippy::too_many_arguments)]
         fn truck_next(
-            truckable: &Vec<bool>,
-            clusters: &Vec<Vec<usize>>,
-            clusters_mapping: &Vec<usize>,
+            truckable: &[bool],
+            clusters: &[Vec<usize>],
+            clusters_mapping: &[usize],
             queue: &mut BinaryHeap<_State>,
             global: &BTreeSet<usize>,
-            truck_routes: &mut Vec<Vec<Rc<TruckRoute>>>,
-            drone_routes: &Vec<Vec<Rc<DroneRoute>>>,
+            truck_routes: &mut [Vec<Rc<TruckRoute>>],
+            drone_routes: &[Vec<Rc<DroneRoute>>],
             parent: usize,
             vehicle: usize,
         ) {
@@ -388,7 +399,7 @@ impl Solution {
             }
 
             if min_idx != 0 {
-                let temp = Solution::new(truck_routes.clone(), drone_routes.clone());
+                let temp = Solution::new(truck_routes.to_vec(), drone_routes.to_vec());
                 queue.push(_State {
                     working_time: temp.truck_working_time[vehicle],
                     vehicle,
@@ -399,14 +410,15 @@ impl Solution {
             }
         }
 
+        #[allow(clippy::too_many_arguments)]
         fn drone_next(
-            dronable: &Vec<bool>,
-            clusters: &Vec<Vec<usize>>,
-            clusters_mapping: &Vec<usize>,
+            dronable: &[bool],
+            clusters: &[Vec<usize>],
+            clusters_mapping: &[usize],
             queue: &mut BinaryHeap<_State>,
             global: &BTreeSet<usize>,
-            truck_routes: &Vec<Vec<Rc<TruckRoute>>>,
-            drone_routes: &mut Vec<Vec<Rc<DroneRoute>>>,
+            truck_routes: &[Vec<Rc<TruckRoute>>],
+            drone_routes: &mut [Vec<Rc<DroneRoute>>],
             parent: usize,
             vehicle: usize,
         ) {
@@ -429,7 +441,7 @@ impl Solution {
             }
 
             if min_idx != 0 {
-                let temp = Solution::new(truck_routes.clone(), drone_routes.clone());
+                let temp = Solution::new(truck_routes.to_vec(), drone_routes.to_vec());
                 queue.push(_State {
                     working_time: temp.drone_working_time[vehicle],
                     vehicle,
@@ -452,13 +464,11 @@ impl Solution {
                         let route = truck_routes[packed.vehicle].last_mut().unwrap();
                         *route = route.push(packed.index);
                     }
+                } else if packed.parent == 0 {
+                    drone_routes[packed.vehicle].push(DroneRoute::single(packed.index));
                 } else {
-                    if packed.parent == 0 {
-                        drone_routes[packed.vehicle].push(DroneRoute::single(packed.index));
-                    } else {
-                        let route = drone_routes[packed.vehicle].last_mut().unwrap();
-                        *route = route.push(packed.index);
-                    }
+                    let route = drone_routes[packed.vehicle].last_mut().unwrap();
+                    *route = route.push(packed.index);
                 }
 
                 if _feasible(truck_routes.clone(), drone_routes.clone()) {
@@ -490,46 +500,44 @@ impl Solution {
                             packed.vehicle,
                         );
                     }
-                } else {
-                    if packed.is_truck {
-                        if packed.parent == 0 {
-                            truck_routes[packed.vehicle].pop();
-                        } else {
-                            let route = truck_routes[packed.vehicle].last_mut().unwrap();
-                            *route = route.pop();
-                        }
-
-                        truck_next(
-                            &truckable,
-                            &clusters,
-                            &clusters_mapping,
-                            &mut queue,
-                            &global,
-                            &mut truck_routes,
-                            &drone_routes,
-                            0,
-                            packed.vehicle,
-                        );
+                } else if packed.is_truck {
+                    if packed.parent == 0 {
+                        truck_routes[packed.vehicle].pop();
                     } else {
-                        if packed.parent == 0 {
-                            drone_routes[packed.vehicle].pop();
-                        } else {
-                            let route = drone_routes[packed.vehicle].last_mut().unwrap();
-                            *route = route.pop();
-                        }
-
-                        drone_next(
-                            &dronable,
-                            &clusters,
-                            &clusters_mapping,
-                            &mut queue,
-                            &global,
-                            &truck_routes,
-                            &mut drone_routes,
-                            0,
-                            packed.vehicle,
-                        );
+                        let route = truck_routes[packed.vehicle].last_mut().unwrap();
+                        *route = route.pop();
                     }
+
+                    truck_next(
+                        &truckable,
+                        &clusters,
+                        &clusters_mapping,
+                        &mut queue,
+                        &global,
+                        &mut truck_routes,
+                        &drone_routes,
+                        0,
+                        packed.vehicle,
+                    );
+                } else {
+                    if packed.parent == 0 {
+                        drone_routes[packed.vehicle].pop();
+                    } else {
+                        let route = drone_routes[packed.vehicle].last_mut().unwrap();
+                        *route = route.pop();
+                    }
+
+                    drone_next(
+                        &dronable,
+                        &clusters,
+                        &clusters_mapping,
+                        &mut queue,
+                        &global,
+                        &truck_routes,
+                        &mut drone_routes,
+                        0,
+                        packed.vehicle,
+                    );
                 }
             }
         }
@@ -646,7 +654,7 @@ impl Solution {
                 Strategy::Cyclic => {
                     neighborhood_idx = (neighborhood_idx + 1) % NEIGHBORHOODS.len();
                 }
-                Strategy::VNS => todo!(),
+                Strategy::Vns => todo!(),
             }
         }
 

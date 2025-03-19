@@ -70,6 +70,7 @@ pub trait Route: fmt::Debug + Sized {
 
     fn _servable(customer: usize) -> bool;
 
+    #[allow(clippy::type_complexity)]
     /// Perform inter-route neighborhood search.
     ///
     /// This function is non-commutative (i.e. `r1.inter_route(r2, n) != r2.inter_route(r1, n)`). For example,
@@ -97,8 +98,10 @@ pub trait Route: fmt::Debug + Sized {
 
         match neighborhood {
             Neighborhood::Move10 => {
-                for idx_i in 1..length_i - 1 {
-                    if !T::_servable(customers_i[idx_i]) {
+                for (idx_i, &customer_i) in
+                    customers_i.iter().enumerate().take(length_i - 1).skip(1)
+                {
+                    if !T::_servable(customer_i) {
                         continue;
                     }
 
@@ -429,7 +432,7 @@ pub trait Route: fmt::Debug + Sized {
 
         let mut cache = self._intra_route_neighbors_cache().borrow_mut();
         match cache.get(&neighborhood) {
-            Some(value) => return value.clone(),
+            Some(value) => value.clone(),
             None => {
                 let values = _intra_route_impl::<Self>(self.data(), neighborhood);
                 cache.insert(neighborhood, values.clone());
@@ -497,7 +500,7 @@ impl Route for TruckRoute {
 }
 
 impl TruckRoute {
-    fn _calculate_waiting_time_violation(customers: &Vec<usize>, working_time: f64) -> f64 {
+    fn _calculate_waiting_time_violation(customers: &[usize], working_time: f64) -> f64 {
         let speed = CONFIG.truck.speed;
         let mut waiting_time_violation = 0.0;
         let mut accumulate_time = 0.0;

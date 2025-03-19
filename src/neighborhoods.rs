@@ -1,3 +1,5 @@
+use std::fmt::Display;
+
 use crate::routes::Route;
 use crate::solutions::Solution;
 
@@ -11,16 +13,20 @@ pub enum Neighborhood {
     TwoOpt,
 }
 
-impl ToString for Neighborhood {
-    fn to_string(&self) -> String {
-        match self {
-            Neighborhood::Move10 => "Move (1, 0)".to_string(),
-            Neighborhood::Move11 => "Move (1, 1)".to_string(),
-            Neighborhood::Move20 => "Move (2, 0)".to_string(),
-            Neighborhood::Move21 => "Move (2, 1)".to_string(),
-            Neighborhood::Move22 => "Move (2, 2)".to_string(),
-            Neighborhood::TwoOpt => "2-opt".to_string(),
-        }
+impl Display for Neighborhood {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "{}",
+            match self {
+                Neighborhood::Move10 => "Move (1, 0)".to_string(),
+                Neighborhood::Move11 => "Move (1, 1)".to_string(),
+                Neighborhood::Move20 => "Move (2, 0)".to_string(),
+                Neighborhood::Move21 => "Move (2, 1)".to_string(),
+                Neighborhood::Move22 => "Move (2, 2)".to_string(),
+                Neighborhood::TwoOpt => "2-opt".to_string(),
+            }
+        )
     }
 }
 
@@ -52,7 +58,7 @@ impl Neighborhood {
     pub fn inter_route(
         self,
         solution: &Solution,
-        tabu_list: &Vec<Vec<usize>>,
+        tabu_list: &[Vec<usize>],
         aspiration_cost: f64,
     ) -> (Solution, Vec<usize>) {
         let (vehicle_i, is_truck) = Self::_find_decisive_vehicle(solution);
@@ -177,7 +183,7 @@ impl Neighborhood {
     pub fn intra_route(
         self,
         solution: &Solution,
-        tabu_list: &Vec<Vec<usize>>,
+        tabu_list: &[Vec<usize>],
         aspiration_cost: f64,
     ) -> (Solution, Vec<usize>) {
         let (vehicle, is_truck) = Self::_find_decisive_vehicle(solution);

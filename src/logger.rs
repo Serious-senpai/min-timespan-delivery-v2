@@ -55,7 +55,7 @@ impl Logger<'_> {
             .collect::<String>();
 
         let mut writer = File::create(outputs.join(format!("{}-{}.csv", problem, id)))?;
-        writer.write(
+        writer.write_all(
             "sep=,\nIteration,p0,p1,p2,p3,Truck routes,Drone routes,Neighborhood\n".as_bytes(),
         )?;
 
@@ -73,7 +73,7 @@ impl Logger<'_> {
             format!("\"{}\"", content)
         }
 
-        fn _expand_routes<T>(routes: &Vec<Vec<Rc<T>>>) -> Vec<Vec<&Vec<usize>>>
+        fn _expand_routes<T>(routes: &[Vec<Rc<T>>]) -> Vec<Vec<&Vec<usize>>>
         where
             T: Route,
         {
@@ -113,13 +113,13 @@ impl Logger<'_> {
                 .join(format!("{}-{}.json", self._problem, self._id)),
         )?;
         println!("Writing summary to {:?}", json);
-        json.write(
+        json.write_all(
             serde_json::to_string(&RunJSON {
                 problem: self._problem.clone(),
                 tabu_size,
                 reset_after,
                 iteration: self._iteration,
-                solution: &result,
+                solution: result,
                 config: &CONFIG,
                 last_improved,
                 elapsed,
@@ -133,14 +133,14 @@ impl Logger<'_> {
                 .join(format!("{}-{}-solution.json", self._problem, self._id)),
         )?;
         println!("Writing solution to {:?}", json);
-        json.write(serde_json::to_string(&result)?.as_bytes())?;
+        json.write_all(serde_json::to_string(&result)?.as_bytes())?;
 
         let mut json = File::create(
             self._outputs
                 .join(format!("{}-{}-config.json", self._problem, self._id)),
         )?;
         println!("Writing config to {:?}", json);
-        json.write(serde_json::to_string(&*CONFIG)?.as_bytes())?;
+        json.write_all(serde_json::to_string(&*CONFIG)?.as_bytes())?;
 
         Ok(())
     }

@@ -2,7 +2,7 @@ use std::{cmp::min, collections::HashMap};
 
 use crate::config::CONFIG;
 
-pub fn clusterize(customers: &mut Vec<usize>, k: usize) -> Vec<Vec<usize>> {
+pub fn clusterize(customers: &mut [usize], k: usize) -> Vec<Vec<usize>> {
     let mut clusters = vec![vec![]; k];
     if customers.is_empty() {
         return clusters;

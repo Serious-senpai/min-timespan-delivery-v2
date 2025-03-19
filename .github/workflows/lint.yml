@@ -6,6 +6,65 @@ permissions:
   contents: read
 
 jobs:
+  autopep8:
+    name: Run autopep8
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install autopep8
+        run: pip install -U autopep8
+
+      - name: Run autopep8
+        run: autopep8 --exit-code --diff -aaar .
+
+  mypy:
+    name: Run mypy
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install mypy
+        run: pip install -U mypy
+
+      - name: Run mypy
+        working-directory: services/api
+        run: mypy .
+
+  flake8:
+    name: Run flake8
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install flake8
+        run: pip install -U flake8
+
+      - name: Run flake8
+        working-directory: services/api
+        run: flake8 .
+
   clippy:
     name: Run clippy
     runs-on: ubuntu-latest
@@ -18,5 +77,4 @@ jobs:
         run: curl --proto '=https' --tlsv1.2 https://sh.rustup.rs -sSf | sh -s -- --default-toolchain=1.85 -y
 
       - name: Run clippy
-        working-directory: services/data
         run: cargo clippy --all-features --no-deps -- -D warnings

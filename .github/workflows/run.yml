@@ -54,6 +54,9 @@ jobs:
           name: executable
           path: .
 
+      - name: Update permission
+        run: chmod +x min-timespan-delivery
+
       - name: Run algorithm
         run: |
           exitcode=0

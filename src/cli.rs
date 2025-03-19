@@ -1,3 +1,5 @@
+use std::fmt::Display;
+
 use clap::{Parser, Subcommand, ValueEnum};
 use serde::{Deserialize, Serialize};
 
@@ -13,14 +15,18 @@ pub enum EnergyModel {
     Unlimited = 3,
 }
 
-impl ToString for EnergyModel {
-    fn to_string(&self) -> String {
-        String::from(match self {
-            Self::Linear => "linear",
-            Self::NonLinear => "non-linear",
-            Self::Endurance => "endurance",
-            Self::Unlimited => "unlimited",
-        })
+impl Display for EnergyModel {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "{}",
+            match self {
+                Self::Linear => "linear",
+                Self::NonLinear => "non-linear",
+                Self::Endurance => "endurance",
+                Self::Unlimited => "unlimited",
+            }
+        )
     }
 }
 
@@ -32,12 +38,16 @@ pub enum ConfigType {
     High,
 }
 
-impl ToString for ConfigType {
-    fn to_string(&self) -> String {
-        String::from(match self {
-            Self::Low => "low",
-            Self::High => "high",
-        })
+impl Display for ConfigType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "{}",
+            match self {
+                Self::Low => "low",
+                Self::High => "high",
+            }
+        )
     }
 }
 
@@ -48,16 +58,20 @@ pub enum Strategy {
     #[serde(rename = "cyclic")]
     Cyclic,
     #[serde(rename = "vns")]
-    VNS,
+    Vns,
 }
 
-impl ToString for Strategy {
-    fn to_string(&self) -> String {
-        String::from(match self {
-            Self::Random => "random",
-            Self::Cyclic => "cyclic",
-            Self::VNS => "vns",
-        })
+impl Display for Strategy {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "{}",
+            match self {
+                Self::Random => "random",
+                Self::Cyclic => "cyclic",
+                Self::Vns => "vns",
+            }
+        )
     }
 }
 
