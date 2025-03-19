@@ -77,7 +77,7 @@ jobs:
           for i in $(seq $begin $end)
           do
             echo "RUN #$i"
-            ./min-timespan-delivery ${{ matrix.problem }}
+            ./min-timespan-delivery run ${{ matrix.problem }}
             report_error
           done
 

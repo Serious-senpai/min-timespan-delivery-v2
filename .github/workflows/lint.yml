@@ -42,7 +42,6 @@ jobs:
         run: pip install -U mypy
 
       - name: Run mypy
-        working-directory: services/api
         run: mypy .
 
   flake8:
@@ -62,7 +61,6 @@ jobs:
         run: pip install -U flake8
 
       - name: Run flake8
-        working-directory: services/api
         run: flake8 .
 
   clippy:
