@@ -48,6 +48,11 @@ jobs:
         steps: [0, 1]
 
     steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
       - name: Download executable
         uses: actions/download-artifact@v4
         with:
@@ -77,7 +82,7 @@ jobs:
           for i in $(seq $begin $end)
           do
             echo "RUN #$i"
-            ./min-timespan-delivery run ${{ matrix.problem }}
+            ./min-timespan-delivery run problems/data/${{ matrix.problem }}.txt
             report_error
           done
 
