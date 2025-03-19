@@ -278,8 +278,8 @@ impl DroneConfig {
                 _data: _EnduranceJSON {
                     speed_type: cli::ConfigType::High,
                     range_type: cli::ConfigType::High,
-                    capacity: std::f64::INFINITY,
-                    fixed_time: std::f64::INFINITY,
+                    capacity: f64::INFINITY,
+                    fixed_time: f64::INFINITY,
                     speed: 1.0,
                 },
             },
@@ -304,8 +304,8 @@ impl DroneConfig {
 
     pub fn fixed_time(&self) -> f64 {
         match self {
-            Self::Linear { .. } => std::f64::INFINITY,
-            Self::NonLinear { .. } => std::f64::INFINITY,
+            Self::Linear { .. } => f64::INFINITY,
+            Self::NonLinear { .. } => f64::INFINITY,
             Self::Endurance { _data, .. } => _data.fixed_time,
         }
     }

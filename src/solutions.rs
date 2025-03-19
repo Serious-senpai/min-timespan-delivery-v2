@@ -6,7 +6,6 @@ use std::sync::LazyLock;
 use std::time::{SystemTime, UNIX_EPOCH};
 use std::{cmp, fmt};
 
-use atomic_float;
 use rand::Rng;
 use rand::{rng, seq::SliceRandom};
 use serde::de::{SeqAccess, Visitor};
@@ -114,7 +113,7 @@ pub fn penalty_coeff<const N: usize>() -> f64 {
     PENALTY_COEFF[N].load(Ordering::Relaxed)
 }
 
-fn _update_violation<const N: usize>(violation: f64) -> () {
+fn _update_violation<const N: usize>(violation: f64) {
     let mut value = PENALTY_COEFF[N].load(Ordering::Relaxed);
     if violation > 0.0 {
         value *= 1.5;
@@ -189,7 +188,7 @@ impl Solution {
     }
 
     pub fn hamming_distance(&self, other: &Solution) -> usize {
-        fn fill_repr<T>(vehicle_routes: &Vec<Vec<Rc<T>>>, repr: &mut Vec<usize>) -> ()
+        fn fill_repr<T>(vehicle_routes: &Vec<Vec<Rc<T>>>, repr: &mut Vec<usize>)
         where
             T: Route,
         {
@@ -219,14 +218,14 @@ impl Solution {
     }
 
     pub fn initialize() -> Solution {
-        fn _sort_cluster_with_starting_point(cluster: &mut Vec<usize>, mut start: usize) -> () {
+        fn _sort_cluster_with_starting_point(cluster: &mut Vec<usize>, mut start: usize) {
             if cluster.is_empty() {
                 return;
             }
 
             let distance = &CONFIG.distances;
             for i in 0..cluster.len() {
-                let mut min_distance = std::f64::INFINITY;
+                let mut min_distance = f64::INFINITY;
                 let mut min_idx = 0;
                 for j in i..cluster.len() {
                     let d = distance[start][cluster[j]];
@@ -370,7 +369,7 @@ impl Solution {
             parent: usize,
             vehicle: usize,
         ) {
-            let mut min_distance = std::f64::INFINITY;
+            let mut min_distance = f64::INFINITY;
             let mut min_idx = 0;
             for &customer in &clusters[clusters_mapping[parent]] {
                 if truckable[customer] && CONFIG.distances[parent][customer] < min_distance {
@@ -411,7 +410,7 @@ impl Solution {
             parent: usize,
             vehicle: usize,
         ) {
-            let mut min_distance = std::f64::INFINITY;
+            let mut min_distance = f64::INFINITY;
             let mut min_idx = 0;
             for &customer in &clusters[clusters_mapping[parent]] {
                 if dronable[customer] && CONFIG.distances[parent][customer] < min_distance {
@@ -549,7 +548,7 @@ impl Solution {
             let mut working_time = vec![0.0; CONFIG.drones_count];
             for route in all_routes {
                 let mut min_idx = 0;
-                let mut min_time = std::f64::INFINITY;
+                let mut min_time = f64::INFINITY;
                 for (i, &time) in working_time.iter().enumerate() {
                     if time < min_time {
                         min_time = time;
@@ -588,7 +587,7 @@ impl Solution {
 
         let iteration_range = match CONFIG.fix_iteration {
             Some(iteration) => 1..iteration,
-            None => 1..std::usize::MAX,
+            None => 1..usize::MAX,
         };
         let time_offset = SystemTime::now().duration_since(UNIX_EPOCH).unwrap();
         let mut rng = rand::rng();

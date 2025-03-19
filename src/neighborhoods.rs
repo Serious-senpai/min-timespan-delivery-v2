@@ -26,7 +26,7 @@ impl ToString for Neighborhood {
 
 impl Neighborhood {
     fn _find_decisive_vehicle(solution: &Solution) -> (usize, bool) {
-        let mut max_time = std::f64::MIN;
+        let mut max_time = f64::MIN;
         let mut vehicle = 0;
         let mut is_truck = true;
 
@@ -60,13 +60,13 @@ impl Neighborhood {
         let mut truck_cloned = solution.truck_routes.clone();
         let mut drone_cloned = solution.drone_routes.clone();
 
-        let mut min_cost = std::f64::MAX;
+        let mut min_cost = f64::MAX;
         let mut require_feasible = false;
         let mut result = (solution.clone(), vec![]);
 
         /// Opposite of `Vec::swap_remove` - push an element to the end of the vector
         /// and swap it with the element at the given index.
-        fn swap_push<T>(vec: &mut Vec<T>, index: usize, element: T) -> () {
+        fn swap_push<T>(vec: &mut Vec<T>, index: usize, element: T) {
             let l = vec.len();
             vec.push(element);
             vec.swap(index, l);
@@ -185,7 +185,7 @@ impl Neighborhood {
         let mut truck_cloned = solution.truck_routes.clone();
         let mut drone_cloned = solution.drone_routes.clone();
 
-        let mut min_cost = std::f64::MAX;
+        let mut min_cost = f64::MAX;
         let mut require_feasible = false;
         let mut result = (solution.clone(), vec![]);
 
