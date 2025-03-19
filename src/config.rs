@@ -17,7 +17,7 @@ pub struct TruckConfig {
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
-struct _LinearJSON {
+pub struct _LinearJSON {
     #[serde(rename = "takeoffSpeed [m/s]")]
     takeoff_speed: f64,
 
@@ -62,7 +62,7 @@ struct _LinearFileJSON {
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
-struct _NonLinearJSON {
+pub struct _NonLinearJSON {
     #[serde(rename = "takeoffSpeed [m/s]")]
     takeoff_speed: f64,
 
@@ -118,7 +118,7 @@ struct _NonLinearFileJSON {
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
-struct _EnduranceJSON {
+pub struct _EnduranceJSON {
     speed_type: cli::ConfigType,
     range_type: cli::ConfigType,
 
@@ -413,7 +413,7 @@ pub struct Config {
     pub waiting_time_limit: f64,
     pub strategy: cli::Strategy,
     pub fix_iteration: Option<usize>,
-    pub reset_after_factor: usize,
+    pub reset_after_factor: f64,
     pub max_elite_size: usize,
     pub verbose: bool,
     pub outputs: String,
@@ -421,6 +421,7 @@ pub struct Config {
 
 pub static CONFIG: LazyLock<Config> = LazyLock::new(|| {
     let arguments = cli::Arguments::parse();
+    println!("Received {:?}", arguments);
     match arguments.command {
         cli::Commands::Evaluate { config, .. } => {
             let data = fs::read_to_string(config).unwrap();
@@ -477,9 +478,9 @@ pub static CONFIG: LazyLock<Config> = LazyLock::new(|| {
                 customers_count += 1;
 
                 let (_, [_x, _y, _demand]) = c.extract::<3>();
-                x.push(_x.parse::<f64>().unwrap());
-                y.push(_y.parse::<f64>().unwrap());
-                demands.push(_demand.parse::<f64>().unwrap());
+                x.push(1609.34 * _x.parse::<f64>().unwrap());
+                y.push(1609.34 * _y.parse::<f64>().unwrap());
+                demands.push(0.453592 * _demand.parse::<f64>().unwrap());
                 dronable.push(true);
             }
 
@@ -495,6 +496,10 @@ pub static CONFIG: LazyLock<Config> = LazyLock::new(|| {
             ))
             .unwrap();
             let drone = DroneConfig::new(config, speed_type, range_type);
+
+            for i in 1..customers_count + 1 {
+                dronable[i] = dronable[i] && demands[i] <= drone.capacity();
+            }
 
             Config {
                 customers_count,

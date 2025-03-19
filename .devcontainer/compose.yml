@@ -5,6 +5,8 @@ services:
   devcontainer:
     command: bash -c "sleep infinity"
     container_name: devcontainer
+    environment:
+      RUST_BACKTRACE: "1"
     image: ubuntu:24.04
     volumes:
       - ..:/workspaces/min-timespan-delivery

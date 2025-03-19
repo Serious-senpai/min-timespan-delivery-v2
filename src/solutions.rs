@@ -1,22 +1,23 @@
-use std::collections::{BTreeSet, BinaryHeap, HashSet};
+use std::collections::{BTreeSet, BinaryHeap};
 use std::marker::PhantomData;
 use std::rc::Rc;
 use std::sync::atomic::Ordering;
 use std::sync::LazyLock;
+use std::time::{SystemTime, UNIX_EPOCH};
 use std::{cmp, fmt};
 
 use atomic_float;
+use rand::Rng;
 use rand::{rng, seq::SliceRandom};
 use serde::de::{SeqAccess, Visitor};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
+use crate::cli::Strategy;
+use crate::clusterize;
+use crate::config::CONFIG;
 use crate::logger::Logger;
-use crate::{
-    clusterize,
-    config::CONFIG,
-    neighborhoods::Neighborhood,
-    routes::{DroneRoute, Route, TruckRoute},
-};
+use crate::neighborhoods::Neighborhood;
+use crate::routes::{DroneRoute, Route, TruckRoute};
 
 fn _deserialize_routes<'de, R, D>(deserializer: D) -> Result<Vec<Vec<Rc<R>>>, D::Error>
 where
@@ -89,12 +90,12 @@ pub struct Solution {
     pub feasible: bool,
 }
 
-const PENALTY_COEFF: LazyLock<[atomic_float::AtomicF64; 4]> = LazyLock::new(|| {
+static PENALTY_COEFF: LazyLock<[atomic_float::AtomicF64; 4]> = LazyLock::new(|| {
     [
-        atomic_float::AtomicF64::new(0.0),
-        atomic_float::AtomicF64::new(0.0),
-        atomic_float::AtomicF64::new(0.0),
-        atomic_float::AtomicF64::new(0.0),
+        atomic_float::AtomicF64::new(1.0),
+        atomic_float::AtomicF64::new(1.0),
+        atomic_float::AtomicF64::new(1.0),
+        atomic_float::AtomicF64::new(1.0),
     ]
 });
 
@@ -111,6 +112,17 @@ const NEIGHBORHOODS: LazyLock<[Neighborhood; 6]> = LazyLock::new(|| {
 
 pub fn penalty_coeff<const N: usize>() -> f64 {
     PENALTY_COEFF[N].load(Ordering::Relaxed)
+}
+
+fn _update_violation<const N: usize>(violation: f64) -> () {
+    let mut value = PENALTY_COEFF[N].load(Ordering::Relaxed);
+    if violation > 0.0 {
+        value *= 1.5;
+    } else {
+        value /= 1.5;
+    };
+
+    PENALTY_COEFF[N].store(value.clamp(1e-3, 1e3), Ordering::Relaxed)
 }
 
 impl Solution {
@@ -176,6 +188,36 @@ impl Solution {
             + penalty_coeff::<3>() * self.fixed_time_violation
     }
 
+    pub fn hamming_distance(&self, other: &Solution) -> usize {
+        fn fill_repr<T>(vehicle_routes: &Vec<Vec<Rc<T>>>, repr: &mut Vec<usize>) -> ()
+        where
+            T: Route,
+        {
+            for routes in vehicle_routes {
+                for route in routes {
+                    let customers = &route.data().customers;
+                    for i in 1..customers.len() - 1 {
+                        repr[customers[i]] = customers[i + 1];
+                    }
+                }
+            }
+        }
+
+        let mut self_repr = vec![0; CONFIG.customers_count + 1];
+        fill_repr(&self.truck_routes, &mut self_repr);
+        fill_repr(&self.drone_routes, &mut self_repr);
+
+        let mut other_repr = vec![0; CONFIG.customers_count + 1];
+        fill_repr(&other.truck_routes, &mut other_repr);
+        fill_repr(&other.drone_routes, &mut other_repr);
+
+        self_repr
+            .iter()
+            .zip(other_repr.iter())
+            .filter(|(a, b)| a != b)
+            .count()
+    }
+
     pub fn initialize() -> Solution {
         fn _sort_cluster_with_starting_point(cluster: &mut Vec<usize>, mut start: usize) -> () {
             if cluster.is_empty() {
@@ -224,7 +266,7 @@ impl Solution {
         if CONFIG.trucks_count > 0 {
             truckable[0] = true;
             for customer in 1..CONFIG.customers_count + 1 {
-                truck_routes[0].push(TruckRoute::new(vec![0, customer, 0]));
+                truck_routes[0].push(TruckRoute::single(customer));
                 truckable[customer] = _feasible(truck_routes.clone(), drone_routes.clone());
                 truck_routes[0].pop();
             }
@@ -235,7 +277,7 @@ impl Solution {
             dronable[0] = true;
             for customer in 1..CONFIG.customers_count + 1 {
                 if CONFIG.dronable[customer] {
-                    drone_routes[0].push(DroneRoute::new(vec![0, customer, 0]));
+                    drone_routes[0].push(DroneRoute::single(customer));
                     dronable[customer] = _feasible(truck_routes.clone(), drone_routes.clone());
                     drone_routes[0].pop();
                 }
@@ -244,7 +286,7 @@ impl Solution {
 
         for customer in 1..CONFIG.customers_count + 1 {
             if !truckable[customer] && !dronable[customer] {
-                panic!("Customer {customer} cannot be served by both trucks and drones")
+                panic!("Customer {customer} cannot be served by neither trucks nor drones")
             }
         }
 
@@ -391,8 +433,8 @@ impl Solution {
                 let temp = Solution::new(truck_routes.clone(), drone_routes.clone());
                 queue.push(_State {
                     working_time: temp.drone_working_time[vehicle],
-                    vehicle: vehicle,
-                    parent: parent,
+                    vehicle,
+                    parent,
                     index: min_idx,
                     is_truck: false,
                 });
@@ -457,6 +499,18 @@ impl Solution {
                             let route = truck_routes[packed.vehicle].last_mut().unwrap();
                             *route = route.pop();
                         }
+
+                        truck_next(
+                            &truckable,
+                            &clusters,
+                            &clusters_mapping,
+                            &mut queue,
+                            &global,
+                            &mut truck_routes,
+                            &drone_routes,
+                            0,
+                            packed.vehicle,
+                        );
                     } else {
                         if packed.parent == 0 {
                             drone_routes[packed.vehicle].pop();
@@ -464,34 +518,20 @@ impl Solution {
                             let route = drone_routes[packed.vehicle].last_mut().unwrap();
                             *route = route.pop();
                         }
+
+                        drone_next(
+                            &dronable,
+                            &clusters,
+                            &clusters_mapping,
+                            &mut queue,
+                            &global,
+                            &truck_routes,
+                            &mut drone_routes,
+                            0,
+                            packed.vehicle,
+                        );
                     }
                 }
-            }
-
-            if packed.is_truck {
-                truck_next(
-                    &truckable,
-                    &clusters,
-                    &clusters_mapping,
-                    &mut queue,
-                    &global,
-                    &mut truck_routes,
-                    &drone_routes,
-                    packed.parent,
-                    packed.vehicle,
-                );
-            } else {
-                drone_next(
-                    &dronable,
-                    &clusters,
-                    &clusters_mapping,
-                    &mut queue,
-                    &global,
-                    &truck_routes,
-                    &mut drone_routes,
-                    packed.parent,
-                    packed.vehicle,
-                );
             }
         }
 
@@ -526,24 +566,102 @@ impl Solution {
     }
 
     pub fn tabu_search(root: Solution, logger: &mut Logger) -> Solution {
-        let result = root.clone();
-        let current = root.clone();
+        let mut total_vehicle = 0;
+        for truck in &root.truck_routes {
+            total_vehicle += !truck.is_empty() as usize;
+        }
+        for drone in &root.drone_routes {
+            total_vehicle += !drone.is_empty() as usize;
+        }
+        let base_hyperparameter = CONFIG.customers_count as f64 / total_vehicle as f64;
+        let tabu_size = (CONFIG.tabu_size_factor * base_hyperparameter) as usize;
+        let reset_after = (CONFIG.reset_after_factor * base_hyperparameter) as usize;
+
+        let mut result = Rc::new(root);
+        let mut current = result.clone();
 
         let mut elite_set = vec![];
-        elite_set.push(&result);
+        elite_set.push(result.clone());
 
-        let neighborhood_idx = 0;
-        for iteration in 1.. {
-            let neighborhood = NEIGHBORHOODS[neighborhood_idx];
-            let neighbor = neighborhood.search(&current, &mut vec![], 0, 0.0);
+        let mut neighborhood_idx = 0;
+        let mut last_improved = 0;
 
-            if elite_set.is_empty() {
-                break;
+        let iteration_range = match CONFIG.fix_iteration {
+            Some(iteration) => 1..iteration,
+            None => 1..std::usize::MAX,
+        };
+        let time_offset = SystemTime::now().duration_since(UNIX_EPOCH).unwrap();
+        let mut rng = rand::rng();
+        for iteration in iteration_range {
+            if CONFIG.verbose {
+                print!(
+                    "Iteration #{} ({}/{})    \r",
+                    iteration,
+                    result.cost(),
+                    elite_set.len()
+                );
             }
 
+            let neighborhood = NEIGHBORHOODS[neighborhood_idx];
+            let neighbor = Rc::new(neighborhood.search(&current, &mut vec![], 0, 0.0));
+            if neighbor.cost() < result.cost() && neighbor.feasible {
+                result = neighbor.clone();
+                last_improved = iteration;
+
+                if CONFIG.max_elite_size > 0 {
+                    if elite_set.len() == CONFIG.max_elite_size {
+                        let (idx, _) = elite_set
+                            .iter()
+                            .enumerate()
+                            .min_by_key(|s| s.1.hamming_distance(&result))
+                            .unwrap();
+                        elite_set.remove(idx);
+                    }
+
+                    elite_set.push(neighbor.clone());
+                }
+            }
+
+            current = neighbor;
+
+            if iteration != last_improved && (iteration - last_improved) % reset_after == 0 {
+                if elite_set.is_empty() {
+                    break;
+                }
+
+                let i = rng.random_range(0..elite_set.len());
+                current = elite_set.remove(i);
+            }
+
+            _update_violation::<0>(current.energy_violation);
+            _update_violation::<1>(current.capacity_violation);
+            _update_violation::<2>(current.waiting_time_violation);
+            _update_violation::<3>(current.fixed_time_violation);
+
             logger.log(&current, neighborhood).unwrap();
+
+            match CONFIG.strategy {
+                Strategy::Random => {
+                    neighborhood_idx = rng.random_range(0..NEIGHBORHOODS.len());
+                }
+                Strategy::Cyclic => {
+                    neighborhood_idx = (neighborhood_idx + 1) % NEIGHBORHOODS.len();
+                }
+                Strategy::VNS => todo!(),
+            }
         }
 
-        result
+        let elapsed = SystemTime::now().duration_since(UNIX_EPOCH).unwrap() - time_offset;
+        logger
+            .finalize(
+                &result,
+                tabu_size,
+                reset_after,
+                last_improved,
+                elapsed.as_micros() as f64 / 1e6,
+            )
+            .unwrap();
+
+        Solution::clone(&result)
     }
 }

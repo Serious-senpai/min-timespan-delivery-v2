@@ -1,6 +1,7 @@
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::fmt;
+use std::mem::swap;
 use std::rc::Rc;
 
 use crate::config::CONFIG;
@@ -67,6 +68,169 @@ pub trait Route: fmt::Debug + Sized {
         Self::new(new_customers)
     }
 
+    fn _servable(customer: usize) -> bool;
+
+    /// Perform inter-route neighborhood search.
+    ///
+    /// This function is non-commutative (i.e. `r1.inter_route(r2, n) != r2.inter_route(r1, n)`). For example,
+    /// `r1.inter_route(r2, Neighborhood::Move10)` will move 1 customer from `r1` to `r2`, but not from `r2` to `r1`.
+    ///
+    /// For symmetric neighborhoods (e.g. `Neighborhood::Move11`), this function will be commutative though.
+    fn inter_route<T>(
+        &self,
+        other: Rc<T>,
+        neighborhood: Neighborhood,
+    ) -> Vec<(Option<Rc<Self>>, Option<Rc<T>>, Vec<usize>)>
+    where
+        T: Route,
+    {
+        let customers_i = &self.data().customers;
+        let customers_j = &other.data().customers;
+
+        let length_i = customers_i.len();
+        let length_j = customers_j.len();
+
+        let mut buffer_i = customers_i.clone();
+        let mut buffer_j = customers_j.clone();
+
+        let mut results = vec![];
+
+        match neighborhood {
+            Neighborhood::Move10 => {
+                for idx_i in 1..length_i - 1 {
+                    if !T::_servable(customers_i[idx_i]) {
+                        continue;
+                    }
+
+                    let removed = buffer_i.remove(idx_i);
+                    let route_i = if length_i == 3 {
+                        None
+                    } else {
+                        Some(Self::new(buffer_i.clone()))
+                    };
+                    let tabu = vec![removed];
+
+                    buffer_j.insert(1, removed);
+
+                    for idx_j in 1..length_j {
+                        let ptr = T::new(buffer_j.clone());
+                        results.push((route_i.clone(), Some(ptr), tabu.clone()));
+
+                        buffer_j.swap(idx_j, idx_j + 1);
+                    }
+
+                    buffer_i.insert(idx_i, removed);
+                    buffer_j.pop();
+                }
+            }
+            Neighborhood::Move11 => {
+                for idx_i in 1..length_i - 1 {
+                    for idx_j in 1..length_j - 1 {
+                        swap(&mut buffer_i[idx_i], &mut buffer_j[idx_j]);
+
+                        let ptr_i = Self::new(buffer_i.clone());
+                        let ptr_j = T::new(buffer_j.clone());
+                        let tabu = vec![customers_i[idx_i], customers_j[idx_j]];
+                        results.push((Some(ptr_i), Some(ptr_j), tabu));
+
+                        swap(&mut buffer_i[idx_i], &mut buffer_j[idx_j]);
+                    }
+                }
+            }
+            Neighborhood::Move20 => {
+                for idx_i in 1..length_i - 2 {
+                    let removed_x = buffer_i.remove(idx_i);
+                    let removed_y = buffer_i.remove(idx_i);
+
+                    let route_i = if length_i == 4 {
+                        None
+                    } else {
+                        Some(Self::new(buffer_i.clone()))
+                    };
+                    let tabu = vec![removed_x, removed_y];
+
+                    buffer_j.insert(1, removed_x);
+                    buffer_j.insert(2, removed_y);
+
+                    for idx_j in 1..length_j {
+                        let ptr = T::new(buffer_j.clone());
+                        results.push((route_i.clone(), Some(ptr), tabu.clone()));
+
+                        buffer_j.swap(idx_j + 1, idx_j + 2);
+                        buffer_j.swap(idx_j, idx_j + 1);
+                    }
+
+                    buffer_i.insert(idx_i, removed_x);
+                    buffer_i.insert(idx_i + 1, removed_y);
+                    buffer_j.pop();
+                    buffer_j.pop();
+                }
+            }
+            Neighborhood::Move21 => {
+                for idx_i in 1..length_i - 2 {
+                    swap(&mut buffer_i[idx_i], &mut buffer_j[1]);
+                    buffer_j.insert(2, buffer_i.remove(idx_i + 1));
+
+                    for idx_j in 1..length_j - 1 {
+                        let ptr_i = Self::new(buffer_i.clone());
+                        let ptr_j = T::new(buffer_j.clone());
+                        let tabu = vec![buffer_j[idx_j], buffer_j[idx_j + 1], buffer_i[idx_i]];
+                        results.push((Some(ptr_i), Some(ptr_j), tabu));
+
+                        swap(&mut buffer_i[idx_i], &mut buffer_j[idx_j + 2]);
+                        buffer_j.swap(idx_j + 1, idx_j + 2);
+                        buffer_j.swap(idx_j, idx_j + 1);
+                    }
+
+                    swap(&mut buffer_i[idx_i], &mut buffer_j[length_j - 1]);
+                    buffer_i.insert(idx_i + 1, buffer_j.pop().unwrap());
+                }
+            }
+            Neighborhood::Move22 => {
+                for idx_i in 1..length_i - 2 {
+                    for idx_j in 1..length_j - 2 {
+                        swap(&mut buffer_i[idx_i], &mut buffer_j[idx_j]);
+                        swap(&mut buffer_i[idx_i + 1], &mut buffer_j[idx_j + 1]);
+
+                        let ptr_i = Self::new(buffer_i.clone());
+                        let ptr_j = T::new(buffer_j.clone());
+                        let tabu = vec![
+                            buffer_i[idx_i],
+                            buffer_i[idx_i + 1],
+                            buffer_j[idx_j],
+                            buffer_j[idx_j + 1],
+                        ];
+                        results.push((Some(ptr_i), Some(ptr_j), tabu));
+
+                        swap(&mut buffer_i[idx_i], &mut buffer_j[idx_j]);
+                        swap(&mut buffer_i[idx_i + 1], &mut buffer_j[idx_j + 1]);
+                    }
+                }
+            }
+            Neighborhood::TwoOpt => {
+                for idx_i in 1..length_i - 1 {
+                    for idx_j in 1..length_j - 1 {
+                        // Construct separate buffers from scratch
+                        let mut buffer_i = customers_i[..idx_i].to_vec();
+                        let mut buffer_j = customers_j[..idx_j].to_vec();
+
+                        buffer_i.extend_from_slice(&customers_j[idx_j..]);
+                        buffer_j.extend_from_slice(&customers_i[idx_i..]);
+
+                        let tabu = vec![buffer_i[idx_i], buffer_j[idx_j]];
+
+                        // Move the buffers to the new routes
+                        let ptr_i = Self::new(buffer_i);
+                        let ptr_j = T::new(buffer_j);
+                        results.push((Some(ptr_i), Some(ptr_j), tabu));
+                    }
+                }
+            }
+        }
+
+        results
+    }
+
     /// Returns a pointer to the underlying cached intra-route neighbors.
     fn intra_route(&self, neighborhood: Neighborhood) -> _NeighborList<Self> {
         fn _intra_route_impl<T>(data: &_RouteData, neighborhood: Neighborhood) -> _NeighborList<T>
@@ -76,11 +240,13 @@ pub trait Route: fmt::Debug + Sized {
             let length = data.customers.len();
             let mut results = vec![];
             let mut buffer = data.customers.clone();
+            /*
             println!(
                 "_intra_route_impl: {:?}, move = {}",
                 data.customers,
                 neighborhood.to_string()
             );
+            */
             match neighborhood {
                 Neighborhood::Move10 => {
                     for i in 1..length - 2 {
@@ -324,6 +490,10 @@ impl Route for TruckRoute {
     fn _intra_route_neighbors_cache(&self) -> &_NeighborhoodCache<Self> {
         &self._neighbors
     }
+
+    fn _servable(_customer: usize) -> bool {
+        true
+    }
 }
 
 impl TruckRoute {
@@ -409,6 +579,10 @@ impl Route for DroneRoute {
 
     fn _intra_route_neighbors_cache(&self) -> &_NeighborhoodCache<Self> {
         &self._neighbors
+    }
+
+    fn _servable(customer: usize) -> bool {
+        CONFIG.dronable[customer]
     }
 }
 

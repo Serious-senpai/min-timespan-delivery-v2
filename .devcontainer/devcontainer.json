@@ -11,9 +11,8 @@
                 "editor.tabSize": 4,
                 "extensions.ignoreRecommendations": false,
                 "files.insertFinalNewline": true,
-                "html.format.wrapLineLength": 0,
-                "javascript.format.enable": true,
                 "git.autorefresh": true,
+                "git.enabled": true,
                 "rust-analyzer.linkedProjects": [
                     "${containerWorkspaceFolder}/Cargo.toml"
                 ],
