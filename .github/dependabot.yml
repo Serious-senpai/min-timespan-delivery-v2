@@ -5,26 +5,12 @@
 
 version: 2
 updates:
-  - package-ecosystem: "pip" # See documentation for possible values
-    directory: "/services/api" # Location of package manifests
-    schedule:
-      interval: "daily"
-    commit-message:
-      prefix: "[pip] "
-
   - package-ecosystem: "cargo" # See documentation for possible values
-    directory: "/services/data" # Location of package manifests
+    directory: "/" # Location of package manifests
     schedule:
       interval: "daily"
     commit-message:
       prefix: "[cargo] "
-
-  - package-ecosystem: "npm" # See documentation for possible values
-    directory: "/services/frontend" # Location of package manifests
-    schedule:
-      interval: "daily"
-    commit-message:
-      prefix: "[npm] "
 
   - package-ecosystem: "github-actions"
     # Workflow files stored in the
