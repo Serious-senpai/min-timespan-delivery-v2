@@ -14,7 +14,7 @@ mod solutions;
 fn main() {
     let mut logger = logger::Logger::new().unwrap();
 
-    match cli::Arguments::parse().command {
+    let solution = match cli::Arguments::parse().command {
         cli::Commands::Evaluate { solution, .. } => {
             let data = fs::read_to_string(solution).unwrap();
             serde_json::from_str::<solutions::Solution>(&data).unwrap()
@@ -24,4 +24,6 @@ fn main() {
             solutions::Solution::tabu_search(root, &mut logger)
         }
     };
+
+    println!(r#"\e[31mResult = {}\e[0m"#, solution.working_time);
 }

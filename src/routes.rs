@@ -603,7 +603,7 @@ impl DroneRoute {
         let _working_time = CONFIG.drone.cruise_time(data.value.distance)
             + (CONFIG.drone.takeoff_time() + CONFIG.drone.landing_time())
                 * (customers.len() as f64 - 1.0);
-        let _capacity_violation = (data.value.weight - CONFIG.truck.capacity).max(0.0);
+        let _capacity_violation = (data.value.weight - CONFIG.drone.capacity()).max(0.0);
 
         let mut time = 0.0;
         let mut energy = 0.0;
