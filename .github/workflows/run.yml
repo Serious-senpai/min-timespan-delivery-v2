@@ -111,3 +111,18 @@ jobs:
           path: outputs/
           pattern: output-*
           merge-multiple: true
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Summarize results
+        run: python scripts/summary.py --directory outputs/ --output summary.csv
+
+      - name: Upload summary table
+        uses: actions/upload-artifact@v4
+        if: ${{ always() }}
+        with:
+          name: summary-csv
+          path: summary.csv

@@ -1,4 +1,4 @@
-use std::fmt::Display;
+use std::fmt;
 
 use clap::{Parser, Subcommand, ValueEnum};
 use serde::{Deserialize, Serialize};
@@ -15,8 +15,8 @@ pub enum EnergyModel {
     Unlimited = 3,
 }
 
-impl Display for EnergyModel {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl fmt::Display for EnergyModel {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
             "{}",
@@ -38,8 +38,8 @@ pub enum ConfigType {
     High,
 }
 
-impl Display for ConfigType {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl fmt::Display for ConfigType {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
             "{}",
@@ -61,8 +61,8 @@ pub enum Strategy {
     Vns,
 }
 
-impl Display for Strategy {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl fmt::Display for Strategy {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
             "{}",
@@ -153,5 +153,9 @@ pub enum Commands {
         /// The directory to store results
         #[arg(long, default_value_t = String::from("outputs/"))]
         outputs: String,
+
+        /// Extra data to store in the output JSON
+        #[arg(long, default_value_t = String::new())]
+        extra: String,
     },
 }

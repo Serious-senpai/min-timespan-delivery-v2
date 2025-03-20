@@ -4,6 +4,7 @@ use std::io;
 use std::io::Write;
 use std::path::Path;
 use std::rc::Rc;
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use rand::distr::Alphanumeric;
 use rand::Rng;
@@ -19,7 +20,7 @@ struct RunJSON<'a> {
     problem: String,
     tabu_size: usize,
     reset_after: usize,
-    iteration: usize,
+    iterations: usize,
     solution: &'a Solution,
     config: &'a Config,
     last_improved: usize,
@@ -29,6 +30,7 @@ struct RunJSON<'a> {
 
 pub struct Logger<'a> {
     _iteration: usize,
+    _time_offset: Duration,
 
     _outputs: &'a Path,
     _problem: String,
@@ -61,6 +63,7 @@ impl Logger<'_> {
 
         Ok(Logger {
             _iteration: 0,
+            _time_offset: SystemTime::now().duration_since(UNIX_EPOCH).unwrap(),
             _outputs: outputs,
             _id: id,
             _problem: problem,
@@ -106,8 +109,9 @@ impl Logger<'_> {
         tabu_size: usize,
         reset_after: usize,
         last_improved: usize,
-        elapsed: f64,
     ) -> Result<(), Box<dyn Error>> {
+        let elapsed = SystemTime::now().duration_since(UNIX_EPOCH).unwrap() - self._time_offset;
+
         let mut json = File::create(
             self._outputs
                 .join(format!("{}-{}.json", self._problem, self._id)),
@@ -118,11 +122,11 @@ impl Logger<'_> {
                 problem: self._problem.clone(),
                 tabu_size,
                 reset_after,
-                iteration: self._iteration,
+                iterations: self._iteration,
                 solution: result,
                 config: &CONFIG,
                 last_improved,
-                elapsed,
+                elapsed: elapsed.as_micros() as f64 / 1e6,
                 extra: String::new(),
             })?
             .as_bytes(),

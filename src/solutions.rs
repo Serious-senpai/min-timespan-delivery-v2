@@ -3,7 +3,6 @@ use std::marker::PhantomData;
 use std::rc::Rc;
 use std::sync::atomic::Ordering;
 use std::sync::LazyLock;
-use std::time::{SystemTime, UNIX_EPOCH};
 use std::{cmp, fmt};
 
 use rand::Rng;
@@ -456,25 +455,92 @@ impl Solution {
             let packed = queue.pop().unwrap();
 
             let cluster = clusters_mapping[packed.index];
-            if let Some(index) = clusters[cluster].iter().position(|&x| x == packed.index) {
-                if packed.is_truck {
-                    if packed.parent == 0 {
-                        truck_routes[packed.vehicle].push(TruckRoute::single(packed.index));
+            match clusters[cluster].iter().position(|&x| x == packed.index) {
+                Some(index) => {
+                    if packed.is_truck {
+                        if packed.parent == 0 {
+                            truck_routes[packed.vehicle].push(TruckRoute::single(packed.index));
+                        } else {
+                            let route = truck_routes[packed.vehicle].last_mut().unwrap();
+                            *route = route.push(packed.index);
+                        }
+                    } else if packed.parent == 0 {
+                        drone_routes[packed.vehicle].push(DroneRoute::single(packed.index));
                     } else {
-                        let route = truck_routes[packed.vehicle].last_mut().unwrap();
+                        let route = drone_routes[packed.vehicle].last_mut().unwrap();
                         *route = route.push(packed.index);
                     }
-                } else if packed.parent == 0 {
-                    drone_routes[packed.vehicle].push(DroneRoute::single(packed.index));
-                } else {
-                    let route = drone_routes[packed.vehicle].last_mut().unwrap();
-                    *route = route.push(packed.index);
+
+                    if _feasible(truck_routes.clone(), drone_routes.clone()) {
+                        clusters[cluster].remove(index);
+                        global.remove(&packed.index);
+
+                        if packed.is_truck {
+                            truck_next(
+                                &truckable,
+                                &clusters,
+                                &clusters_mapping,
+                                &mut queue,
+                                &global,
+                                &mut truck_routes,
+                                &drone_routes,
+                                packed.index,
+                                packed.vehicle,
+                            );
+                        } else {
+                            drone_next(
+                                &dronable,
+                                &clusters,
+                                &clusters_mapping,
+                                &mut queue,
+                                &global,
+                                &truck_routes,
+                                &mut drone_routes,
+                                packed.index,
+                                packed.vehicle,
+                            );
+                        }
+                    } else if packed.is_truck {
+                        if packed.parent == 0 {
+                            truck_routes[packed.vehicle].pop();
+                        } else {
+                            let route = truck_routes[packed.vehicle].last_mut().unwrap();
+                            *route = route.pop();
+                        }
+
+                        truck_next(
+                            &truckable,
+                            &clusters,
+                            &clusters_mapping,
+                            &mut queue,
+                            &global,
+                            &mut truck_routes,
+                            &drone_routes,
+                            0,
+                            packed.vehicle,
+                        );
+                    } else {
+                        if packed.parent == 0 {
+                            drone_routes[packed.vehicle].pop();
+                        } else {
+                            let route = drone_routes[packed.vehicle].last_mut().unwrap();
+                            *route = route.pop();
+                        }
+
+                        drone_next(
+                            &dronable,
+                            &clusters,
+                            &clusters_mapping,
+                            &mut queue,
+                            &global,
+                            &truck_routes,
+                            &mut drone_routes,
+                            0,
+                            packed.vehicle,
+                        );
+                    }
                 }
-
-                if _feasible(truck_routes.clone(), drone_routes.clone()) {
-                    clusters[cluster].remove(index);
-                    global.remove(&packed.index);
-
+                None => {
                     if packed.is_truck {
                         truck_next(
                             &truckable,
@@ -484,7 +550,7 @@ impl Solution {
                             &global,
                             &mut truck_routes,
                             &drone_routes,
-                            packed.index,
+                            packed.parent,
                             packed.vehicle,
                         );
                     } else {
@@ -496,48 +562,10 @@ impl Solution {
                             &global,
                             &truck_routes,
                             &mut drone_routes,
-                            packed.index,
+                            packed.parent,
                             packed.vehicle,
                         );
                     }
-                } else if packed.is_truck {
-                    if packed.parent == 0 {
-                        truck_routes[packed.vehicle].pop();
-                    } else {
-                        let route = truck_routes[packed.vehicle].last_mut().unwrap();
-                        *route = route.pop();
-                    }
-
-                    truck_next(
-                        &truckable,
-                        &clusters,
-                        &clusters_mapping,
-                        &mut queue,
-                        &global,
-                        &mut truck_routes,
-                        &drone_routes,
-                        0,
-                        packed.vehicle,
-                    );
-                } else {
-                    if packed.parent == 0 {
-                        drone_routes[packed.vehicle].pop();
-                    } else {
-                        let route = drone_routes[packed.vehicle].last_mut().unwrap();
-                        *route = route.pop();
-                    }
-
-                    drone_next(
-                        &dronable,
-                        &clusters,
-                        &clusters_mapping,
-                        &mut queue,
-                        &global,
-                        &truck_routes,
-                        &mut drone_routes,
-                        0,
-                        packed.vehicle,
-                    );
                 }
             }
         }
@@ -597,7 +625,6 @@ impl Solution {
             Some(iteration) => 1..iteration,
             None => 1..usize::MAX,
         };
-        let time_offset = SystemTime::now().duration_since(UNIX_EPOCH).unwrap();
         let mut rng = rand::rng();
         for iteration in iteration_range {
             if CONFIG.verbose {
@@ -658,15 +685,8 @@ impl Solution {
             }
         }
 
-        let elapsed = SystemTime::now().duration_since(UNIX_EPOCH).unwrap() - time_offset;
         logger
-            .finalize(
-                &result,
-                tabu_size,
-                reset_after,
-                last_improved,
-                elapsed.as_micros() as f64 / 1e6,
-            )
+            .finalize(&result, tabu_size, reset_after, last_improved)
             .unwrap();
 
         Solution::clone(&result)

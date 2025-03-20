@@ -41,7 +41,7 @@ impl _RouteData {
     }
 }
 
-pub trait Route: fmt::Debug + Sized {
+pub trait Route: fmt::Display + Sized {
     fn new(customers: Vec<usize>) -> Rc<Self>;
     fn single(customer: usize) -> Rc<Self> {
         Self::new(vec![0, customer, 0])
@@ -243,13 +243,6 @@ pub trait Route: fmt::Debug + Sized {
             let length = data.customers.len();
             let mut results = vec![];
             let mut buffer = data.customers.clone();
-            /*
-            println!(
-                "_intra_route_impl: {:?}, move = {}",
-                data.customers,
-                neighborhood.to_string()
-            );
-            */
             match neighborhood {
                 Neighborhood::Move10 => {
                     for i in 1..length - 2 {
@@ -451,6 +444,12 @@ pub struct TruckRoute {
     _waiting_time_violation: f64,
 }
 
+impl fmt::Display for TruckRoute {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{:?}", self.data().customers)
+    }
+}
+
 impl Route for TruckRoute {
     fn new(customers: Vec<usize>) -> Rc<TruckRoute> {
         thread_local! {
@@ -540,6 +539,12 @@ pub struct DroneRoute {
 
     pub energy_violation: f64,
     pub fixed_time_violation: f64,
+}
+
+impl fmt::Display for DroneRoute {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{:?}", self.data().customers)
+    }
 }
 
 impl Route for DroneRoute {

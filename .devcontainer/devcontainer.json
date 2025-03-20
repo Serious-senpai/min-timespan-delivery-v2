@@ -17,7 +17,6 @@
                 "files.insertFinalNewline": true,
                 "git.autorefresh": true,
                 "git.enabled": true,
-                "python.defaultInterpreterPath": "/venv/bin/python",
                 "rust-analyzer.linkedProjects": [
                     "${containerWorkspaceFolder}/Cargo.toml"
                 ],
