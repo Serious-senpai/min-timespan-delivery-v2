@@ -97,7 +97,7 @@ impl Logger<'_> {
 
         self._iteration += 1;
         if let Some(ref mut writer) = self._writer {
-            writer.write(
+            writer.write_all(
                 format!(
                     "{},{},{},{},{},{},{},{}\n",
                     self._iteration,
