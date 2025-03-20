@@ -128,7 +128,15 @@ pub trait Route: fmt::Display + Sized {
             }
             Neighborhood::Move11 => {
                 for idx_i in 1..length_i - 1 {
+                    if !T::_servable(buffer_i[idx_i]) {
+                        continue;
+                    }
+
                     for idx_j in 1..length_j - 1 {
+                        if !Self::_servable(buffer_j[idx_j]) {
+                            continue;
+                        }
+
                         swap(&mut buffer_i[idx_i], &mut buffer_j[idx_j]);
 
                         let ptr_i = Self::new(buffer_i.clone());
@@ -142,6 +150,10 @@ pub trait Route: fmt::Display + Sized {
             }
             Neighborhood::Move20 => {
                 for idx_i in 1..length_i - 2 {
+                    if !T::_servable(buffer_i[idx_i]) || !T::_servable(buffer_i[idx_i + 1]) {
+                        continue;
+                    }
+
                     let removed_x = buffer_i.remove(idx_i);
                     let removed_y = buffer_i.remove(idx_i);
 
@@ -171,14 +183,20 @@ pub trait Route: fmt::Display + Sized {
             }
             Neighborhood::Move21 => {
                 for idx_i in 1..length_i - 2 {
+                    if !T::_servable(buffer_i[idx_i]) || !T::_servable(buffer_i[idx_i + 1]) {
+                        continue;
+                    }
+
                     swap(&mut buffer_i[idx_i], &mut buffer_j[1]);
                     buffer_j.insert(2, buffer_i.remove(idx_i + 1));
 
                     for idx_j in 1..length_j - 1 {
-                        let ptr_i = Self::new(buffer_i.clone());
-                        let ptr_j = T::new(buffer_j.clone());
-                        let tabu = vec![buffer_j[idx_j], buffer_j[idx_j + 1], buffer_i[idx_i]];
-                        results.push((Some(ptr_i), Some(ptr_j), tabu));
+                        if Self::_servable(buffer_j[idx_j]) {
+                            let ptr_i = Self::new(buffer_i.clone());
+                            let ptr_j = T::new(buffer_j.clone());
+                            let tabu = vec![buffer_j[idx_j], buffer_j[idx_j + 1], buffer_i[idx_i]];
+                            results.push((Some(ptr_i), Some(ptr_j), tabu));
+                        }
 
                         swap(&mut buffer_i[idx_i], &mut buffer_j[idx_j + 2]);
                         buffer_j.swap(idx_j + 1, idx_j + 2);
@@ -191,7 +209,17 @@ pub trait Route: fmt::Display + Sized {
             }
             Neighborhood::Move22 => {
                 for idx_i in 1..length_i - 2 {
+                    if !T::_servable(buffer_i[idx_i]) || !T::_servable(buffer_i[idx_i + 1]) {
+                        continue;
+                    }
+
                     for idx_j in 1..length_j - 2 {
+                        if !Self::_servable(buffer_j[idx_j])
+                            || !Self::_servable(buffer_j[idx_j + 1])
+                        {
+                            continue;
+                        }
+
                         swap(&mut buffer_i[idx_i], &mut buffer_j[idx_j]);
                         swap(&mut buffer_i[idx_i + 1], &mut buffer_j[idx_j + 1]);
 
@@ -211,8 +239,18 @@ pub trait Route: fmt::Display + Sized {
                 }
             }
             Neighborhood::TwoOpt => {
-                for idx_i in 1..length_i - 1 {
-                    for idx_j in 1..length_j - 1 {
+                let mut offset_i = length_i - 1;
+                while offset_i > 1 && T::_servable(buffer_i[offset_i - 1]) {
+                    offset_i -= 1;
+                }
+
+                let mut offset_j = length_j - 1;
+                while offset_j > 1 && Self::_servable(buffer_j[offset_j - 1]) {
+                    offset_j -= 1;
+                }
+
+                for idx_i in offset_i..length_i - 1 {
+                    for idx_j in offset_j..length_j - 1 {
                         // Construct separate buffers from scratch
                         let mut buffer_i = customers_i[..idx_i].to_vec();
                         let mut buffer_j = customers_j[..idx_j].to_vec();

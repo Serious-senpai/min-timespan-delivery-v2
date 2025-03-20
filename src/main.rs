@@ -1,6 +1,7 @@
 use std::fs;
 
 use clap::Parser;
+use colored::Colorize;
 
 mod cli;
 mod clusterize;
@@ -25,5 +26,5 @@ fn main() {
         }
     };
 
-    println!(r#"\e[31mResult = {}\e[0m"#, solution.working_time);
+    println!("{}", format!("Result = {}", solution.working_time).red());
 }

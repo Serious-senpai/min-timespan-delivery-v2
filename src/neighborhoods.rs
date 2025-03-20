@@ -19,12 +19,12 @@ impl Display for Neighborhood {
             f,
             "{}",
             match self {
-                Neighborhood::Move10 => "Move (1, 0)".to_string(),
-                Neighborhood::Move11 => "Move (1, 1)".to_string(),
-                Neighborhood::Move20 => "Move (2, 0)".to_string(),
-                Neighborhood::Move21 => "Move (2, 1)".to_string(),
-                Neighborhood::Move22 => "Move (2, 2)".to_string(),
-                Neighborhood::TwoOpt => "2-opt".to_string(),
+                Self::Move10 => "Move (1, 0)".to_string(),
+                Self::Move11 => "Move (1, 1)".to_string(),
+                Self::Move20 => "Move (2, 0)".to_string(),
+                Self::Move21 => "Move (2, 1)".to_string(),
+                Self::Move22 => "Move (2, 2)".to_string(),
+                Self::TwoOpt => "2-opt".to_string(),
             }
         )
     }
@@ -90,8 +90,18 @@ impl Neighborhood {
                                         continue;
                                     }
 
-                                    for (new_route_i, new_route_j, tabu) in
-                                        route_i.inter_route(route_j.clone(), self)
+                                    let mut neighbors = route_i.inter_route(route_j.clone(), self);
+                                    let asymmetric = self == Self::Move10 || self == Self::Move20 || self == Self::Move21;
+                                    if asymmetric {
+                                        neighbors.extend(
+                                            route_j
+                                                .inter_route(route_i.clone(), self)
+                                                .into_iter()
+                                                .map(|t| (t.1, t.0, t.2)),
+                                        );
+                                    }
+
+                                    for (new_route_i, new_route_j, tabu) in neighbors
                                     {
                                         // Temporary assign new routes.
                                         // Make use of `swap_remove` due to its O(1) complexity and the route order
