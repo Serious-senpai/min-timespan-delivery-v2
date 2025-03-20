@@ -417,6 +417,7 @@ pub struct Config {
     pub max_elite_size: usize,
     pub verbose: bool,
     pub outputs: String,
+    pub disable_logging: bool,
     pub extra: String,
 }
 
@@ -443,6 +444,7 @@ pub static CONFIG: LazyLock<Config> = LazyLock::new(|| {
             max_elite_size,
             verbose,
             outputs,
+            disable_logging,
             extra,
         } => {
             let trucks_count_regex = Regex::new(r"number_truck (\d+)").unwrap();
@@ -526,6 +528,7 @@ pub static CONFIG: LazyLock<Config> = LazyLock::new(|| {
                 max_elite_size,
                 verbose,
                 outputs,
+                disable_logging,
                 extra,
             }
         }

@@ -82,7 +82,7 @@ jobs:
           for i in $(seq $begin $end)
           do
             echo "RUN #$i"
-            ./min-timespan-delivery run problems/data/${{ matrix.problem }}.txt
+            ./min-timespan-delivery run problems/data/${{ matrix.problem }}.txt --disable-logging
             report_error
           done
 

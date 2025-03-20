@@ -35,7 +35,7 @@ pub struct Logger<'a> {
     _outputs: &'a Path,
     _problem: String,
     _id: String,
-    _writer: File,
+    _writer: Option<File>,
 }
 
 impl Logger<'_> {
@@ -56,10 +56,19 @@ impl Logger<'_> {
             .map(char::from)
             .collect::<String>();
 
-        let mut writer = File::create(outputs.join(format!("{}-{}.csv", problem, id)))?;
-        writer.write_all(
-            "sep=,\nIteration,p0,p1,p2,p3,Truck routes,Drone routes,Neighborhood\n".as_bytes(),
-        )?;
+        let mut writer = if CONFIG.disable_logging {
+            None
+        } else {
+            Some(File::create(
+                outputs.join(format!("{}-{}.csv", problem, id)),
+            )?)
+        };
+
+        if let Some(ref mut writer) = writer {
+            writer.write_all(
+                "sep=,\nIteration,p0,p1,p2,p3,Truck routes,Drone routes,Neighborhood\n".as_bytes(),
+            )?;
+        }
 
         Ok(Logger {
             _iteration: 0,
@@ -71,7 +80,7 @@ impl Logger<'_> {
         })
     }
 
-    pub fn log(&mut self, solution: &Solution, neighbor: Neighborhood) -> Result<usize, io::Error> {
+    pub fn log(&mut self, solution: &Solution, neighbor: Neighborhood) -> Result<(), io::Error> {
         fn _wrap(content: &String) -> String {
             format!("\"{}\"", content)
         }
@@ -87,20 +96,24 @@ impl Logger<'_> {
         }
 
         self._iteration += 1;
-        self._writer.write(
-            format!(
-                "{},{},{},{},{},{},{},{}\n",
-                self._iteration,
-                penalty_coeff::<0>(),
-                penalty_coeff::<1>(),
-                penalty_coeff::<2>(),
-                penalty_coeff::<3>(),
-                _wrap(&format!("{:?}", _expand_routes(&solution.truck_routes))),
-                _wrap(&format!("{:?}", _expand_routes(&solution.drone_routes))),
-                _wrap(&neighbor.to_string()),
-            )
-            .as_bytes(),
-        )
+        if let Some(ref mut writer) = self._writer {
+            writer.write(
+                format!(
+                    "{},{},{},{},{},{},{},{}\n",
+                    self._iteration,
+                    penalty_coeff::<0>(),
+                    penalty_coeff::<1>(),
+                    penalty_coeff::<2>(),
+                    penalty_coeff::<3>(),
+                    _wrap(&format!("{:?}", _expand_routes(&solution.truck_routes))),
+                    _wrap(&format!("{:?}", _expand_routes(&solution.drone_routes))),
+                    _wrap(&neighbor.to_string()),
+                )
+                .as_bytes(),
+            )?;
+        }
+
+        Ok(())
     }
 
     pub fn finalize(

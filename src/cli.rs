@@ -154,6 +154,10 @@ pub enum Commands {
         #[arg(long, default_value_t = String::from("outputs/"))]
         outputs: String,
 
+        /// Disable CSV logging per iteration (this can significantly reduce the running time)
+        #[arg(long)]
+        disable_logging: bool,
+
         /// Extra data to store in the output JSON
         #[arg(long, default_value_t = String::new())]
         extra: String,

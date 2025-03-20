@@ -18,7 +18,11 @@ fn main() {
     let solution = match cli::Arguments::parse().command {
         cli::Commands::Evaluate { solution, .. } => {
             let data = fs::read_to_string(solution).unwrap();
-            serde_json::from_str::<solutions::Solution>(&data).unwrap()
+            let s = serde_json::from_str::<solutions::Solution>(&data).unwrap();
+            logger
+                .finalize(&s, usize::MAX, usize::MAX, usize::MAX)
+                .unwrap();
+            s
         }
         cli::Commands::Run { .. } => {
             let root = solutions::Solution::initialize();

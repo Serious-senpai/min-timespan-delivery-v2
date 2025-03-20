@@ -27,6 +27,9 @@
         }
     },
     "features": {
+        "ghcr.io/devcontainers/features/git:1": {
+            "version": "2.49.0"
+        },
         "ghcr.io/devcontainers/features/python:1": {
             "version": "3.12",
             "toolsToInstall": ""
