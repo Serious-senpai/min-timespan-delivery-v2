@@ -81,6 +81,7 @@ if __name__ == "__main__":
         csv.write("\n")
 
         for (dirpath, _, filenames) in directory.walk():
+            filenames.sort()
             for filename in filenames:
                 if pattern.fullmatch(filename):
                     with open(dirpath / filename, "r", encoding="utf-8") as reader:
