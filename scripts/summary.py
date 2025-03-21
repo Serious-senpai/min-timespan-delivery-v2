@@ -75,6 +75,7 @@ if __name__ == "__main__":
             "Customers per drone route",
             "Drone route count",
             "Strategy",
+            "Extra",
         ]
         csv.write(",".join(headers))
         csv.write("\n")
@@ -128,5 +129,6 @@ if __name__ == "__main__":
                         "",
                         "",
                         data["config"]["strategy"],
+                        data["config"]["extra"],
                     ]
                     csv.write(",".join(segments) + "\n")

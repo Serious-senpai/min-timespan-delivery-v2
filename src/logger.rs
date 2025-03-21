@@ -25,7 +25,6 @@ struct RunJSON<'a> {
     config: &'a Config,
     last_improved: usize,
     elapsed: f64,
-    extra: String,
 }
 
 pub struct Logger<'a> {
@@ -140,7 +139,6 @@ impl Logger<'_> {
                 config: &CONFIG,
                 last_improved,
                 elapsed: elapsed.as_micros() as f64 / 1e6,
-                extra: String::new(),
             })?
             .as_bytes(),
         )?;
