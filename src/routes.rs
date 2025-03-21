@@ -541,25 +541,9 @@ impl fmt::Display for TruckRoute {
 
 impl Route for TruckRoute {
     fn new(customers: Vec<usize>) -> Rc<TruckRoute> {
-        thread_local! {
-            static _CACHE: RefCell<HashMap<Vec<usize>, Rc<TruckRoute>>> = RefCell::new(HashMap::new());
-        }
-
-        let cached = _CACHE.with_borrow(|c| c.get(&customers).cloned());
-        match cached {
-            Some(value) => value,
-            None => {
-                let route = Rc::new(TruckRoute::_construct(_RouteData::_construct(
-                    customers.clone(),
-                )));
-                _CACHE.with(|c| {
-                    let mut r = c.borrow_mut();
-                    r.insert(customers, route.clone())
-                });
-
-                route
-            }
-        }
+        Rc::new(TruckRoute::_construct(_RouteData::_construct(
+            customers.clone(),
+        )))
     }
 
     fn data(&self) -> &_RouteData {
@@ -638,24 +622,9 @@ impl fmt::Display for DroneRoute {
 
 impl Route for DroneRoute {
     fn new(customers: Vec<usize>) -> Rc<DroneRoute> {
-        thread_local! {
-            static _CACHE: RefCell<HashMap<Vec<usize>, Rc<DroneRoute>>> = RefCell::new(HashMap::new());
-        }
-
-        let cached = _CACHE.with_borrow(|c| c.get(&customers).cloned());
-        match cached {
-            Some(value) => value,
-            None => {
-                let route = Rc::new(DroneRoute::_construct(_RouteData::_construct(
-                    customers.clone(),
-                )));
-                _CACHE.with(|c| {
-                    let mut r = c.borrow_mut();
-                    r.insert(customers, route.clone())
-                });
-                route
-            }
-        }
+        Rc::new(DroneRoute::_construct(_RouteData::_construct(
+            customers.clone(),
+        )))
     }
 
     fn data(&self) -> &_RouteData {
