@@ -66,7 +66,7 @@ if __name__ == "__main__":
             "Feasible",
             "Last improved",
             "Elapsed [s]",
-            "URL",
+            "Extra",
             "Faster [%]",
             "Weight per truck route",
             "Customers per truck route",
@@ -75,7 +75,6 @@ if __name__ == "__main__":
             "Customers per drone route",
             "Drone route count",
             "Strategy",
-            "Extra",
         ]
         csv.write(",".join(headers))
         csv.write("\n")
@@ -121,7 +120,7 @@ if __name__ == "__main__":
                         str(int(data["solution"]["feasible"])),
                         str(data["last_improved"]),
                         str(data["elapsed"]),
-                        wrap(data["extra"]),
+                        wrap(data["config"]["extra"]),
                         "",
                         "",
                         "",
@@ -130,6 +129,5 @@ if __name__ == "__main__":
                         "",
                         "",
                         data["config"]["strategy"],
-                        data["config"]["extra"],
                     ]
                     csv.write(",".join(segments) + "\n")
