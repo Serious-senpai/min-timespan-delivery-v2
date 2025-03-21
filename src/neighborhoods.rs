@@ -1,6 +1,6 @@
 use std::fmt::Display;
 
-use crate::routes::Route;
+use crate::routes::{DroneRoute, Route, TruckRoute};
 use crate::solutions::Solution;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -185,6 +185,56 @@ impl Neighborhood {
             search_route!(solution.truck_routes, truck_cloned);
         } else {
             search_route!(solution.drone_routes, drone_cloned);
+        }
+
+        macro_rules! search_route_append {
+            ($original_routes_i:expr, $cloned_routes_i:expr) => {
+                let routes_i = &$original_routes_i[vehicle_i];
+                for (route_idx_i, route_i) in routes_i.iter().enumerate() {
+                    macro_rules! search_other_routes_append {
+                        ($original_routes_j:expr, $cloned_routes_j:expr, $type_j:tt) => {
+                            for (new_route_i, new_route_j, tabu) in
+                                route_i.inter_route_extract::<$type_j>(self)
+                            {
+                                $cloned_routes_i[vehicle_i][route_idx_i] = new_route_i;
+                                for vehicle_j in 0..$original_routes_j.len() {
+                                    $cloned_routes_j[vehicle_j].push(new_route_j.clone());
+
+                                    let s = Solution::new(truck_cloned, drone_cloned);
+                                    let cost = s.cost();
+
+                                    if !(require_feasible && !s.feasible) && cost < aspiration_cost
+                                        || (!tabu_list.contains(&tabu) && cost < min_cost)
+                                    {
+                                        min_cost = cost;
+                                        result = (s.clone(), tabu.clone());
+                                        if cost < aspiration_cost && s.feasible {
+                                            require_feasible = true;
+                                        }
+                                    }
+
+                                    // Restore old routes
+                                    truck_cloned = s.truck_routes;
+                                    drone_cloned = s.drone_routes;
+
+                                    $cloned_routes_j[vehicle_j].pop();
+                                }
+                            }
+                        };
+                    }
+
+                    search_other_routes_append!(solution.truck_routes, truck_cloned, TruckRoute);
+                    search_other_routes_append!(solution.drone_routes, drone_cloned, DroneRoute);
+
+                    $cloned_routes_i[vehicle_i][route_idx_i] = route_i.clone();
+                }
+            };
+        }
+
+        if is_truck {
+            search_route_append!(solution.truck_routes, truck_cloned);
+        } else {
+            search_route_append!(solution.drone_routes, drone_cloned);
         }
 
         result

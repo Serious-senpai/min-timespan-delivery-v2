@@ -1,5 +1,5 @@
 use std::cell::RefCell;
-use std::collections::HashMap;
+use std::collections::{HashMap, VecDeque};
 use std::fmt;
 use std::mem::swap;
 use std::rc::Rc;
@@ -26,6 +26,7 @@ impl _RouteData {
     fn _construct(customers: Vec<usize>) -> _RouteData {
         assert!(customers.first() == Some(&0));
         assert!(customers.last() == Some(&0));
+        assert!(customers.len() >= 3);
 
         let mut distance = 0.0;
         let mut weight = 0.0;
@@ -69,6 +70,56 @@ pub trait Route: fmt::Display + Sized {
     }
 
     fn _servable(customer: usize) -> bool;
+
+    /// Extract customer subsegments from this route to form a new route during an inter-route operation.
+    ///
+    /// Note that if the current route becomes empty after extracting the subsegment, the result set will be
+    /// empty.
+    fn inter_route_extract<T>(
+        &self,
+        neighborhood: Neighborhood,
+    ) -> Vec<(Rc<Self>, Rc<T>, Vec<usize>)>
+    where
+        T: Route,
+    {
+        let customers = &self.data().customers;
+        let mut results = vec![];
+        let mut queue = VecDeque::new();
+        let size = match neighborhood {
+            Neighborhood::Move10 => 1,
+            Neighborhood::Move20 => 2,
+            _default => 0,
+        };
+
+        if size == 0 || customers.len() - 2 <= size {
+            return results;
+        }
+
+        for i in 1..customers.len() - 1 {
+            if T::_servable(customers[i]) {
+                queue.push_back(customers[i]);
+                if queue.len() > size {
+                    queue.pop_front();
+                }
+
+                if queue.len() == size {
+                    let mut original = customers[0..i - size + 1].to_vec();
+                    original.extend(customers[i + 1..].iter().cloned());
+
+                    let mut route = vec![0];
+                    route.extend(queue.iter().copied());
+                    route.push(0);
+
+                    let tabu = customers[i - size + 1..i + 1].to_vec();
+                    results.push((Self::new(original), T::new(route), tabu));
+                }
+            } else {
+                queue.clear();
+            }
+        }
+
+        results
+    }
 
     #[allow(clippy::type_complexity)]
     /// Perform inter-route neighborhood search.
