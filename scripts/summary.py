@@ -48,17 +48,17 @@ if __name__ == "__main__":
             "Range type",
             "Waiting time limit",
             "Truck maximum speed",
-            "Endurance fixed time",
-            "Endurance drone speed",
-            "Cost",
-            "MILP cost",
+            "Endurance fixed time [s]",
+            "Endurance drone speed [m/s]",
+            "Cost [minute]",
+            "MILP cost [minute]",
             "Improved [%]",
-            "MILP performance",
+            "MILP performance [s]",
             "MILP status",
-            "Capacity violation",
-            "Energy violation",
-            "Waiting time violation",
-            "Fixed time violation",
+            "Capacity violation [kg]",
+            "Energy violation [J]",
+            "Waiting time violation [s]",
+            "Fixed time violation [s]",
             "Truck paths",
             "Drone paths",
             "Truck working time",
@@ -68,10 +68,10 @@ if __name__ == "__main__":
             "Elapsed [s]",
             "Extra",
             "Faster [%]",
-            "Weight per truck route",
+            "Weight per truck route [kg]",
             "Customers per truck route",
             "Truck route count",
-            "Weight per drone route",
+            "Weight per drone route [kg]",
             "Customers per drone route",
             "Drone route count",
             "Strategy",
@@ -86,24 +86,36 @@ if __name__ == "__main__":
                     with open(dirpath / filename, "r", encoding="utf-8") as reader:
                         data = json.load(reader)
 
+                    truck_routes = data["solution"]["truck_routes"]
+                    drone_routes = data["solution"]["drone_routes"]
+
+                    truck_route_count = sum(len(routes) for routes in truck_routes)
+                    drone_route_count = sum(len(routes) for routes in drone_routes)
+
+                    config = data["config"]
+                    truck_weight = sum(sum(sum(config["demands"][c] for c in route) for route in routes) for routes in truck_routes)
+                    drone_weight = sum(sum(sum(config["demands"][c] for c in route) for route in routes) for routes in drone_routes)
+                    truck_customers = sum(sum(len(route) - 2 for route in routes) for routes in truck_routes)
+                    drone_customers = sum(sum(len(route) - 2 for route in routes) for routes in drone_routes)
+
                     segments = [
                         wrap(data["problem"]),
                         "",
-                        str(data["config"]["trucks_count"]),
-                        str(data["config"]["drones_count"]),
+                        str(config["trucks_count"]),
+                        str(config["drones_count"]),
                         str(data["iterations"]),
-                        str(data["config"]["tabu_size_factor"]),
-                        str(data["config"]["reset_after_factor"]),
+                        str(config["tabu_size_factor"]),
+                        str(config["reset_after_factor"]),
                         str(data["tabu_size"]),
                         str(data["reset_after"]),
-                        str(data["config"]["max_elite_size"]),
-                        data["config"]["config"],
-                        data["config"]["speed_type"],
-                        data["config"]["range_type"],
-                        str(data["config"]["waiting_time_limit"]),
-                        str(data["config"]["truck"]["V_max (m/s)"]),
-                        str(data["config"]["drone"]["_data"].get("FixedTime (s)", -1)),
-                        str(data["config"]["drone"]["_data"].get("V_max (m/s)", -1)),
+                        str(config["max_elite_size"]),
+                        config["config"],
+                        config["speed_type"],
+                        config["range_type"],
+                        str(config["waiting_time_limit"]),
+                        str(config["truck"]["V_max (m/s)"]),
+                        str(config["drone"]["_data"].get("FixedTime (s)", -1)),
+                        str(config["drone"]["_data"].get("V_max (m/s)", -1)),
                         str(data["solution"]["working_time"] / 60),
                         "",
                         "",
@@ -120,14 +132,14 @@ if __name__ == "__main__":
                         str(int(data["solution"]["feasible"])),
                         str(data["last_improved"]),
                         str(data["elapsed"]),
-                        wrap(data["config"]["extra"]),
+                        wrap(config["extra"]),
                         "",
-                        "",
-                        "",
-                        "",
-                        "",
-                        "",
-                        "",
-                        data["config"]["strategy"],
+                        str(truck_weight / truck_route_count if truck_route_count > 0 else 0),
+                        str(truck_customers / truck_route_count if truck_route_count > 0 else 0),
+                        str(truck_route_count),
+                        str(drone_weight / drone_route_count if drone_route_count > 0 else 0),
+                        str(drone_customers / drone_route_count if drone_route_count > 0 else 0),
+                        str(drone_route_count),
+                        config["strategy"],
                     ]
                     csv.write(",".join(segments) + "\n")
