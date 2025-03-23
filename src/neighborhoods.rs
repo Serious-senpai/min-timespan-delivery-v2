@@ -57,22 +57,25 @@ impl Neighborhood {
 
     fn _internal_update(
         tabu_list: &[Vec<usize>],
-        aspiration_cost: f64,
+        aspiration_cost: &mut f64,
         min_cost: &mut f64,
         require_feasible: &mut bool,
         result: &mut (Solution, Vec<usize>),
         solution: &Solution,
         tabu: &Vec<usize>,
     ) {
-        let cost = solution.cost();
         let feasible = solution.feasible;
-        if !(*require_feasible && !feasible)
-            && ((cost < aspiration_cost && feasible)
-                || (!tabu_list.contains(&tabu) && cost < *min_cost))
-        {
+        if *require_feasible && !feasible {
+            return;
+        }
+
+        let cost = solution.cost();
+        let new_best_global_solution = cost < *aspiration_cost && feasible;
+        if new_best_global_solution || (!tabu_list.contains(tabu) && cost < *min_cost) {
             *min_cost = cost;
             *result = (solution.clone(), tabu.clone());
-            if cost < aspiration_cost && feasible {
+            if new_best_global_solution {
+                *aspiration_cost = cost;
                 *require_feasible = true;
             }
         }
@@ -82,7 +85,7 @@ impl Neighborhood {
         self,
         solution: &Solution,
         tabu_list: &[Vec<usize>],
-        aspiration_cost: f64,
+        mut aspiration_cost: f64,
     ) -> (Solution, Vec<usize>) {
         let (vehicle_i, is_truck) = Self::_find_decisive_vehicle(solution);
 
@@ -156,7 +159,7 @@ impl Neighborhood {
 
                                         Self::_internal_update(
                                             tabu_list,
-                                            aspiration_cost,
+                                            &mut aspiration_cost,
                                             &mut min_cost,
                                             &mut require_feasible,
                                             &mut result,
@@ -226,7 +229,7 @@ impl Neighborhood {
 
                                     Self::_internal_update(
                                         tabu_list,
-                                        aspiration_cost,
+                                        &mut aspiration_cost,
                                         &mut min_cost,
                                         &mut require_feasible,
                                         &mut result,
@@ -265,7 +268,7 @@ impl Neighborhood {
         self,
         solution: &Solution,
         tabu_list: &[Vec<usize>],
-        aspiration_cost: f64,
+        mut aspiration_cost: f64,
     ) -> (Solution, Vec<usize>) {
         let (vehicle, is_truck) = Self::_find_decisive_vehicle(solution);
 
@@ -286,16 +289,16 @@ impl Neighborhood {
                         // Construct the new solution: move `truck_cloned` and `drone_cloned` to the temp solution
                         // and get them back later during restoration
                         let s = Solution::new(truck_cloned, drone_cloned);
-                        let cost = s.cost();
-                        if !(require_feasible && !s.feasible) && (cost < aspiration_cost || (!tabu_list.contains(&tabu) && cost < min_cost))
-                        {
-                            min_cost = cost;
-                            result = (s.clone(), tabu.clone());
-                            if cost < aspiration_cost && s.feasible
-                            {
-                                require_feasible = true;
-                            }
-                        }
+
+                        Self::_internal_update(
+                            tabu_list,
+                            &mut aspiration_cost,
+                            &mut min_cost,
+                            &mut require_feasible,
+                            &mut result,
+                            &s,
+                            &tabu,
+                        );
 
                         // Restore old route
                         truck_cloned = s.truck_routes;
