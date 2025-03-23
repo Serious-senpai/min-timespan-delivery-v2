@@ -669,7 +669,7 @@ impl Solution {
                 }
 
                 let i = rng.random_range(0..elite_set.len());
-                current = elite_set.remove(i);
+                current = elite_set.swap_remove(i);
             }
 
             _update_violation::<0>(current.energy_violation);

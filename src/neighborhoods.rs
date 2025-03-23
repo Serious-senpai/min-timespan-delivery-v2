@@ -55,6 +55,29 @@ impl Neighborhood {
         (vehicle, is_truck)
     }
 
+    fn _internal_update(
+        tabu_list: &[Vec<usize>],
+        aspiration_cost: f64,
+        min_cost: &mut f64,
+        require_feasible: &mut bool,
+        result: &mut (Solution, Vec<usize>),
+        solution: &Solution,
+        tabu: &Vec<usize>,
+    ) {
+        let cost = solution.cost();
+        let feasible = solution.feasible;
+        if !(*require_feasible && !feasible)
+            && ((cost < aspiration_cost && feasible)
+                || (!tabu_list.contains(&tabu) && cost < *min_cost))
+        {
+            *min_cost = cost;
+            *result = (solution.clone(), tabu.clone());
+            if cost < aspiration_cost && feasible {
+                *require_feasible = true;
+            }
+        }
+    }
+
     pub fn inter_route(
         self,
         solution: &Solution,
@@ -130,17 +153,16 @@ impl Neighborhood {
                                         // Construct the new solution: move `truck_cloned` and `drone_cloned` to the temp solution
                                         // and get them back later during restoration
                                         let s = Solution::new(truck_cloned, drone_cloned);
-                                        let cost = s.cost();
 
-                                        if !(require_feasible && !s.feasible) && cost < aspiration_cost || (!tabu_list.contains(&tabu) && cost < min_cost)
-                                        {
-                                            min_cost = cost;
-                                            result = (s.clone(), tabu);
-                                            if cost < aspiration_cost && s.feasible
-                                            {
-                                                require_feasible = true;
-                                            }
-                                        }
+                                        Self::_internal_update(
+                                            tabu_list,
+                                            aspiration_cost,
+                                            &mut min_cost,
+                                            &mut require_feasible,
+                                            &mut result,
+                                            &s,
+                                            &tabu,
+                                        );
 
                                         // Restore old routes
                                         truck_cloned = s.truck_routes;
@@ -201,17 +223,16 @@ impl Neighborhood {
                                     $cloned_routes_j[vehicle_j].push(new_route_j.clone());
 
                                     let s = Solution::new(truck_cloned, drone_cloned);
-                                    let cost = s.cost();
 
-                                    if !(require_feasible && !s.feasible) && cost < aspiration_cost
-                                        || (!tabu_list.contains(&tabu) && cost < min_cost)
-                                    {
-                                        min_cost = cost;
-                                        result = (s.clone(), tabu.clone());
-                                        if cost < aspiration_cost && s.feasible {
-                                            require_feasible = true;
-                                        }
-                                    }
+                                    Self::_internal_update(
+                                        tabu_list,
+                                        aspiration_cost,
+                                        &mut min_cost,
+                                        &mut require_feasible,
+                                        &mut result,
+                                        &s,
+                                        &tabu,
+                                    );
 
                                     // Restore old routes
                                     truck_cloned = s.truck_routes;
@@ -266,7 +287,7 @@ impl Neighborhood {
                         // and get them back later during restoration
                         let s = Solution::new(truck_cloned, drone_cloned);
                         let cost = s.cost();
-                        if !(require_feasible && !s.feasible) && cost < aspiration_cost || (!tabu_list.contains(&tabu) && cost < min_cost)
+                        if !(require_feasible && !s.feasible) && (cost < aspiration_cost || (!tabu_list.contains(&tabu) && cost < min_cost))
                         {
                             min_cost = cost;
                             result = (s.clone(), tabu.clone());
