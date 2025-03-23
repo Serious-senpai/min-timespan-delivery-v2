@@ -626,6 +626,9 @@ impl Solution {
             None => 1..usize::MAX,
         };
         let mut rng = rand::rng();
+
+        let mut tabu_lists = vec![Vec::new(); NEIGHBORHOODS.len()];
+
         for iteration in iteration_range {
             if CONFIG.verbose {
                 print!(
@@ -637,7 +640,8 @@ impl Solution {
             }
 
             let neighborhood = NEIGHBORHOODS[neighborhood_idx];
-            let neighbor = Rc::new(neighborhood.search(&current, &mut vec![], 0, 0.0));
+            let tabu_list = &mut tabu_lists[neighborhood_idx];
+            let neighbor = Rc::new(neighborhood.search(&current, tabu_list, tabu_size, 0.0));
             if neighbor.cost() < result.cost() && neighbor.feasible {
                 result = neighbor.clone();
                 last_improved = iteration;
@@ -672,7 +676,7 @@ impl Solution {
             _update_violation::<2>(current.waiting_time_violation);
             _update_violation::<3>(current.fixed_time_violation);
 
-            logger.log(&current, neighborhood).unwrap();
+            logger.log(&current, neighborhood, tabu_list).unwrap();
 
             match CONFIG.strategy {
                 Strategy::Random => {

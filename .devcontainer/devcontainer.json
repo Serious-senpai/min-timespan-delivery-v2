@@ -32,7 +32,7 @@
         },
         "ghcr.io/devcontainers/features/python:1": {
             "version": "3.12",
-            "toolsToInstall": ""
+            "toolsToInstall": "autopep8,flake8,mypy"
         },
         "ghcr.io/devcontainers/features/rust:1": {
             "version": "1.85"

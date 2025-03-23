@@ -303,12 +303,13 @@ impl Neighborhood {
     ) -> Solution {
         let intra = self.intra_route(solution, tabu_list, aspiration_cost);
         let inter = self.inter_route(solution, tabu_list, aspiration_cost);
-        let (result, tabu) = if intra.0.cost() < inter.0.cost() {
+        let (result, mut tabu) = if intra.0.cost() < inter.0.cost() {
             intra
         } else {
             inter
         };
 
+        tabu.sort();
         match tabu_list.iter().position(|x| x == &tabu) {
             Some(index) => {
                 tabu_list[index..].rotate_left(1);

@@ -64,9 +64,28 @@ impl Logger<'_> {
         };
 
         if let Some(ref mut writer) = writer {
-            writer.write_all(
-                "sep=,\nIteration,p0,p1,p2,p3,Truck routes,Drone routes,Neighborhood\n".as_bytes(),
-            )?;
+            println!("Logging iterations to {:?}", writer);
+
+            let columns = vec![
+                "Iteration",
+                "Cost",
+                "Working time",
+                "Feasible",
+                "p0",
+                "Energy violation",
+                "p1",
+                "Capacity violation",
+                "p2",
+                "Waiting time violation",
+                "p3",
+                "Fixed time violation",
+                "Truck routes",
+                "Drone routes",
+                "Neighborhood",
+                "Tabu list",
+            ]
+            .join(",");
+            writeln!(writer, "sep=,\n{}", columns)?;
         }
 
         Ok(Logger {
@@ -79,7 +98,12 @@ impl Logger<'_> {
         })
     }
 
-    pub fn log(&mut self, solution: &Solution, neighbor: Neighborhood) -> Result<(), io::Error> {
+    pub fn log(
+        &mut self,
+        solution: &Solution,
+        neighbor: Neighborhood,
+        tabu_list: &Vec<Vec<usize>>,
+    ) -> Result<(), io::Error> {
         fn _wrap(content: &String) -> String {
             format!("\"{}\"", content)
         }
@@ -96,19 +120,25 @@ impl Logger<'_> {
 
         self._iteration += 1;
         if let Some(ref mut writer) = self._writer {
-            writer.write_all(
-                format!(
-                    "{},{},{},{},{},{},{},{}\n",
-                    self._iteration,
-                    penalty_coeff::<0>(),
-                    penalty_coeff::<1>(),
-                    penalty_coeff::<2>(),
-                    penalty_coeff::<3>(),
-                    _wrap(&format!("{:?}", _expand_routes(&solution.truck_routes))),
-                    _wrap(&format!("{:?}", _expand_routes(&solution.drone_routes))),
-                    _wrap(&neighbor.to_string()),
-                )
-                .as_bytes(),
+            writeln!(
+                writer,
+                "{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{}",
+                self._iteration,
+                solution.cost(),
+                solution.working_time,
+                solution.feasible as i32,
+                penalty_coeff::<0>(),
+                solution.energy_violation,
+                penalty_coeff::<1>(),
+                solution.capacity_violation,
+                penalty_coeff::<2>(),
+                solution.waiting_time_violation,
+                penalty_coeff::<3>(),
+                solution.fixed_time_violation,
+                _wrap(&format!("{:?}", _expand_routes(&solution.truck_routes))),
+                _wrap(&format!("{:?}", _expand_routes(&solution.drone_routes))),
+                _wrap(&neighbor.to_string()),
+                _wrap(&format!("{:?}", tabu_list)),
             )?;
         }
 
