@@ -641,7 +641,8 @@ impl Solution {
 
             let neighborhood = NEIGHBORHOODS[neighborhood_idx];
             let tabu_list = &mut tabu_lists[neighborhood_idx];
-            let neighbor = Rc::new(neighborhood.search(&current, tabu_list, tabu_size, 0.0));
+            let neighbor =
+                Rc::new(neighborhood.search(&current, tabu_list, tabu_size, result.cost()));
             if neighbor.cost() < result.cost() && neighbor.feasible {
                 result = neighbor.clone();
                 last_improved = iteration;
