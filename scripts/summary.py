@@ -3,12 +3,14 @@ from __future__ import annotations
 import argparse
 import json
 import re
+from collections import defaultdict
 from pathlib import Path
 from typing import Any, TYPE_CHECKING
 
 
 class Namespace(argparse.Namespace):
     if TYPE_CHECKING:
+        milp: str
         directory: str
         output: str
 
@@ -19,14 +21,14 @@ def wrap(content: Any) -> str:
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--directory", required=True)
-    parser.add_argument("--output", required=True)
+    parser.add_argument("--milp", type=str, default="problems/milp")
+    parser.add_argument("--directory", type=str, default="outputs/")
+    parser.add_argument("--output", type=str, default="outputs/summary.csv")
     args = parser.parse_args(namespace=Namespace())
 
+    milp = Path(args.milp).resolve()
     directory = Path(args.directory).resolve()
     output = Path(args.output).resolve()
-    if output.is_file():
-        raise FileExistsError(f"Cannot overwrite existing file at {output}")
 
     pattern = re.compile(r"^([^-]+?)-\w{8}\.json$")
 
@@ -79,12 +81,20 @@ if __name__ == "__main__":
         csv.write(",".join(headers))
         csv.write("\n")
 
+        row = 2
         for (dirpath, _, filenames) in directory.walk():
             filenames.sort()
             for filename in filenames:
                 if pattern.fullmatch(filename):
                     with open(dirpath / filename, "r", encoding="utf-8") as reader:
                         data = json.load(reader)
+
+                    problem = data["problem"]
+                    milp_result = milp / f"result_{problem}.json"
+                    milp_data: Any = defaultdict(str)
+                    if milp_result.is_file():
+                        with milp_result.open("r", encoding="utf-8") as reader:
+                            milp_data.update(json.load(reader))
 
                     truck_routes = data["solution"]["truck_routes"]
                     drone_routes = data["solution"]["drone_routes"]
@@ -99,7 +109,7 @@ if __name__ == "__main__":
                     drone_customers = sum(sum(len(route) - 2 for route in routes) for routes in drone_routes)
 
                     segments = [
-                        wrap(data["problem"]),
+                        wrap(problem),
                         "",
                         str(config["trucks_count"]),
                         str(config["drones_count"]),
@@ -117,10 +127,10 @@ if __name__ == "__main__":
                         str(config["drone"]["_data"].get("FixedTime (s)", -1)),
                         str(config["drone"]["_data"].get("V_max (m/s)", -1)),
                         str(data["solution"]["working_time"] / 60),
-                        "",
-                        "",
-                        "",
-                        "",
+                        str(milp_data["Optimal"]),
+                        f"=ROUND(100 * (S{row} - R{row}) / S{row}, 2)",
+                        str(milp_data["Solve_Time"]),
+                        milp_data["status"],
                         str(data["solution"]["capacity_violation"]),
                         str(data["solution"]["energy_violation"]),
                         str(data["solution"]["waiting_time_violation"]),
@@ -133,7 +143,7 @@ if __name__ == "__main__":
                         str(data["last_improved"]),
                         str(data["elapsed"]),
                         wrap(config["extra"]),
-                        "",
+                        f"=ROUND(100 * (U{row} - AG{row}) / U{row}, 2)",
                         str(truck_weight / truck_route_count if truck_route_count > 0 else 0),
                         str(truck_customers / truck_route_count if truck_route_count > 0 else 0),
                         str(truck_route_count),
@@ -143,3 +153,4 @@ if __name__ == "__main__":
                         config["strategy"],
                     ]
                     csv.write(",".join(segments) + "\n")
+                    row += 1
