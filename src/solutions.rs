@@ -216,6 +216,24 @@ impl Solution {
             .count()
     }
 
+    pub fn post_optimization(&self) -> Solution {
+        let mut result = Rc::new(self.clone());
+
+        let mut improved = true;
+        while improved {
+            improved = false;
+            for neighborhood in NEIGHBORHOODS.iter() {
+                let best = neighborhood.search(&result, &mut vec![], 0, result.cost());
+                if best.cost() < result.cost() && best.feasible {
+                    result = Rc::new(best);
+                    improved = true;
+                }
+            }
+        }
+
+        Solution::clone(&result)
+    }
+
     pub fn initialize() -> Solution {
         fn _sort_cluster_with_starting_point(cluster: &mut [usize], mut start: usize) {
             if cluster.is_empty() {
@@ -627,7 +645,7 @@ impl Solution {
         };
         let mut rng = rand::rng();
 
-        let mut tabu_lists = vec![Vec::new(); NEIGHBORHOODS.len()];
+        let mut tabu_lists = vec![vec![]; NEIGHBORHOODS.len()];
 
         for iteration in iteration_range {
             if CONFIG.verbose {
@@ -689,6 +707,8 @@ impl Solution {
                 Strategy::Vns => todo!(),
             }
         }
+
+        result = Rc::new(result.post_optimization());
 
         logger
             .finalize(&result, tabu_size, reset_after, last_improved)
