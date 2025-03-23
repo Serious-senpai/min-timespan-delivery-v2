@@ -632,10 +632,10 @@ impl Solution {
         for iteration in iteration_range {
             if CONFIG.verbose {
                 print!(
-                    "Iteration #{} ({}/{})    \r",
+                    "Iteration #{} ({:.2}/{:.2})     \r",
                     iteration,
+                    current.cost(),
                     result.cost(),
-                    elite_set.len()
                 );
             }
 
