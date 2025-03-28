@@ -126,5 +126,5 @@ jobs:
         with:
           name: summary-csv
           path: |
-            summary.csv
-            summary.db
+            outputs/summary.csv
+            outputs/summary.db
