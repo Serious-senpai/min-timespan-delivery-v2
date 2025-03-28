@@ -704,7 +704,13 @@ impl Solution {
                 Strategy::Cyclic => {
                     neighborhood_idx = (neighborhood_idx + 1) % NEIGHBORHOODS.len();
                 }
-                Strategy::Vns => todo!(),
+                Strategy::Vns => {
+                    if iteration == last_improved {
+                        neighborhood_idx = 0;
+                    } else {
+                        neighborhood_idx = (neighborhood_idx + 1) % NEIGHBORHOODS.len();
+                    }
+                }
             }
         }
 
