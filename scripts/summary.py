@@ -1,8 +1,10 @@
 from __future__ import annotations
 
 import argparse
+import itertools
 import json
 import re
+import sqlite3
 from collections import defaultdict
 from pathlib import Path
 from typing import Any, TYPE_CHECKING
@@ -12,7 +14,6 @@ class Namespace(argparse.Namespace):
     if TYPE_CHECKING:
         milp: str
         directory: str
-        output: str
 
 
 def wrap(content: Any) -> str:
@@ -23,16 +24,16 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--milp", type=str, default="problems/milp")
     parser.add_argument("--directory", type=str, default="outputs/")
-    parser.add_argument("--output", type=str, default="outputs/summary.csv")
     args = parser.parse_args(namespace=Namespace())
 
     milp = Path(args.milp).resolve()
     directory = Path(args.directory).resolve()
-    output = Path(args.output).resolve()
+    output_csv = directory / "summary.csv"
+    output_db = directory / "summary.db"
 
     pattern = re.compile(r"^([^-]+?)-\w{8}\.json$")
 
-    with output.open("w", encoding="utf-8") as csv:
+    with output_csv.open("w", encoding="utf-8") as csv:
         csv.write("sep=,\n")
         headers = [
             "Problem",
@@ -81,11 +82,67 @@ if __name__ == "__main__":
         csv.write(",".join(headers))
         csv.write("\n")
 
-        row = 2
-        for (dirpath, _, filenames) in directory.walk():
-            filenames.sort()
-            for filename in filenames:
-                if pattern.fullmatch(filename):
+        if output_db.is_file():
+            output_db.unlink()
+
+        with sqlite3.connect(output_db) as connection:
+            cursor = connection.cursor()
+
+            columns = [
+                "problem TEXT NOT NULL",
+                "customers_count INTEGER NOT NULL",
+                "trucks_count INTEGER NOT NULL",
+                "drones_count INTEGER NOT NULL",
+                "iterations INTEGER NOT NULL",
+                "tabu_size_factor REAL NOT NULL",
+                "reset_after_factor INTEGER NOT NULL",
+                "tabu_size INTEGER NOT NULL",
+                "reset_after INTEGER NOT NULL",
+                "max_elite_set_size INTEGER NOT NULL",
+                "energy_model TEXT NOT NULL",
+                "speed_type TEXT NOT NULL",
+                "range_type TEXT NOT NULL",
+                "waiting_time_limit INTEGER NOT NULL",
+                "truck_maximum_speed REAL",
+                "endurance_fixed_time REAL",
+                "endurance_drone_speed REAL",
+                "cost REAL NOT NULL",
+                "milp_cost REAL",
+                "milp_performance REAL",
+                "milp_status TEXT",
+                "capacity_violation REAL NOT NULL",
+                "energy_violation REAL NOT NULL",
+                "waiting_time_violation REAL NOT NULL",
+                "fixed_time_violation REAL NOT NULL",
+                "truck_paths TEXT NOT NULL",
+                "drone_paths TEXT NOT NULL",
+                "truck_working_time TEXT NOT NULL",
+                "drone_working_time TEXT NOT NULL",
+                "feasible INTEGER NOT NULL",
+                "last_improved INTEGER NOT NULL",
+                "elapsed REAL NOT NULL",
+                "url TEXT",
+                "weight_per_truck_route REAL NOT NULL",
+                "customers_per_truck_route REAL NOT NULL",
+                "truck_route_count INTEGER NOT NULL",
+                "weight_per_drone_route REAL NOT NULL",
+                "customers_per_drone_route REAL NOT NULL",
+                "drone_route_count INTEGER NOT NULL",
+                "strategy TEXT NOT NULL",
+            ]
+
+            query = "CREATE TABLE summary(" + ", ".join(columns) + ")"
+            cursor.execute(query)
+
+            query = "INSERT INTO summary VALUES (" + ", ".join(itertools.repeat("?", len(columns))) + ")"
+
+            row = 2
+            for (dirpath, _, filenames) in directory.walk():
+                filenames.sort()
+                for filename in filenames:
+                    if not pattern.fullmatch(filename):
+                        continue
+
                     with open(dirpath / filename, "r", encoding="utf-8") as reader:
                         data = json.load(reader)
 
@@ -154,3 +211,49 @@ if __name__ == "__main__":
                     ]
                     csv.write(",".join(segments) + "\n")
                     row += 1
+
+                    cursor.execute(
+                        query,
+                        (
+                            problem,
+                            int(problem.split(".")[0]),
+                            config["trucks_count"],
+                            config["drones_count"],
+                            data["iterations"],
+                            config["tabu_size_factor"],
+                            config["reset_after_factor"],
+                            data["tabu_size"],
+                            data["reset_after"],
+                            config["max_elite_size"],
+                            config["config"],
+                            config["speed_type"],
+                            config["range_type"],
+                            config["waiting_time_limit"],
+                            config["truck"]["V_max (m/s)"],
+                            config["drone"]["_data"].get("FixedTime (s)", -1),
+                            config["drone"]["_data"].get("V_max (m/s)", -1),
+                            data["solution"]["working_time"] / 60,
+                            milp_data["Optimal"],
+                            milp_data["Solve_Time"],
+                            milp_data["status"],
+                            data["solution"]["capacity_violation"],
+                            data["solution"]["energy_violation"],
+                            data["solution"]["waiting_time_violation"],
+                            data["solution"]["fixed_time_violation"],
+                            str(data["solution"]["truck_routes"]),
+                            str(data["solution"]["drone_routes"]),
+                            str(data["solution"]["truck_working_time"]),
+                            str(data["solution"]["drone_working_time"]),
+                            int(data["solution"]["feasible"]),
+                            data["last_improved"],
+                            data["elapsed"],
+                            config["extra"],
+                            truck_weight / truck_route_count if truck_route_count > 0 else 0,
+                            truck_customers / truck_route_count if truck_route_count > 0 else 0,
+                            truck_route_count,
+                            drone_weight / drone_route_count if drone_route_count > 0 else 0,
+                            drone_customers / drone_route_count if drone_route_count > 0 else 0,
+                            drone_route_count,
+                            config["strategy"],
+                        )
+                    )

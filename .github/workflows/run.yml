@@ -118,11 +118,13 @@ jobs:
           python-version: "3.12"
 
       - name: Summarize results
-        run: python scripts/summary.py --directory outputs/ --output summary.csv
+        run: python scripts/summary.py
 
-      - name: Upload summary table
+      - name: Upload summary files
         uses: actions/upload-artifact@v4
         if: ${{ always() }}
         with:
           name: summary-csv
-          path: summary.csv
+          path: |
+            summary.csv
+            summary.db
