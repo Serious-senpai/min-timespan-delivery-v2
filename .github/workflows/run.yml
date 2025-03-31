@@ -40,7 +40,7 @@ jobs:
       fail-fast: false
       matrix:
         strategy: [cyclic, random, vns]
-        tabu-size-factor: [0, 0.2, 0.4, 0.6, 0.8, 1]
+        tabu-size-factor: [0, 0.5, 1, 1.5, 2, 2.5]
         steps: [0, 1, 2, 3, 4]
 
     steps:
