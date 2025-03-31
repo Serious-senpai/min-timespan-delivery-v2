@@ -679,6 +679,7 @@ impl Solution {
                 }
             }
 
+            let old_current = current;
             current = neighbor;
 
             if iteration != last_improved && (iteration - last_improved) % reset_after == 0 {
@@ -708,6 +709,7 @@ impl Solution {
                     if iteration == last_improved {
                         neighborhood_idx = 0;
                     } else {
+                        current = old_current;
                         neighborhood_idx = (neighborhood_idx + 1) % NEIGHBORHOODS.len();
                     }
                 }
