@@ -135,7 +135,8 @@ impl Solution {
         let mut fixed_time_violation = 0.0;
         for routes in &truck_routes {
             working_time = working_time.max(routes.iter().map(|r| r.working_time()).sum());
-            capacity_violation += routes.iter().map(|r| r.capacity_violation()).sum::<f64>();
+            capacity_violation +=
+                routes.iter().map(|r| r.capacity_violation()).sum::<f64>() / CONFIG.truck.capacity;
             waiting_time_violation += routes
                 .iter()
                 .map(|r| r.waiting_time_violation())
@@ -144,7 +145,8 @@ impl Solution {
         for routes in &drone_routes {
             working_time = working_time.max(routes.iter().map(|r| r.working_time()).sum::<f64>());
             energy_violation += routes.iter().map(|r| r.energy_violation).sum::<f64>();
-            capacity_violation += routes.iter().map(|r| r.capacity_violation()).sum::<f64>();
+            capacity_violation += routes.iter().map(|r| r.capacity_violation()).sum::<f64>()
+                / CONFIG.drone.capacity();
             waiting_time_violation += routes
                 .iter()
                 .map(|r| r.waiting_time_violation())
@@ -162,7 +164,6 @@ impl Solution {
             .collect();
 
         energy_violation /= CONFIG.drone.battery();
-        capacity_violation /= CONFIG.truck.capacity;
         waiting_time_violation /= CONFIG.waiting_time_limit;
         fixed_time_violation /= CONFIG.drone.fixed_time();
 
