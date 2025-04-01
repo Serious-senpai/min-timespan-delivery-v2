@@ -161,6 +161,11 @@ impl Solution {
             .map(|r| r.iter().map(|r| r.working_time()).sum())
             .collect();
 
+        energy_violation /= CONFIG.drone.battery();
+        capacity_violation /= CONFIG.truck.capacity;
+        waiting_time_violation /= CONFIG.waiting_time_limit;
+        fixed_time_violation /= CONFIG.drone.fixed_time();
+
         Solution {
             truck_routes,
             drone_routes,
