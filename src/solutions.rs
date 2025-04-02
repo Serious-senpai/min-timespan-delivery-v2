@@ -191,7 +191,7 @@ impl Solution {
                 + penalty_coeff::<1>() * self.capacity_violation
                 + penalty_coeff::<2>() * self.waiting_time_violation
                 + penalty_coeff::<3>() * self.fixed_time_violation)
-                .powf(0.4)
+                .powf(CONFIG.penalty_exponent)
     }
 
     pub fn hamming_distance(&self, other: &Solution) -> usize {

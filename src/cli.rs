@@ -146,6 +146,12 @@ pub enum Commands {
         #[arg(long, default_value_t = 10)]
         max_elite_size: usize,
 
+        /// Exponent value E attached to the cost function:
+        ///
+        /// Cost(S) = [working time] * (1 + [weighted penalty values]).powf(E)
+        #[arg(long, default_value_t = 0.4)]
+        penalty_exponent: f64,
+
         /// The verbose mode
         #[arg(short, long)]
         verbose: bool,
