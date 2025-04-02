@@ -120,7 +120,7 @@ fn _update_violation<const N: usize>(violation: f64) {
         value /= 1.5;
     };
 
-    PENALTY_COEFF[N].store(value.clamp(1e-3, 1e3), Ordering::Relaxed)
+    PENALTY_COEFF[N].store(value.clamp(1.0, 1e3), Ordering::Relaxed)
 }
 
 impl Solution {
