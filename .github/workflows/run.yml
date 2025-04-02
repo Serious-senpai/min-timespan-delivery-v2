@@ -40,7 +40,8 @@ jobs:
       fail-fast: false
       matrix:
         strategy: [cyclic, random, vns]
-        tabu-size-factor: [0, 0.5, 1, 1.5, 2, 2.5]
+        tabu-size-factor: [0, 0.5, 1, 1.5]
+        penalty-exponent: [0, 0.5, 1, 1.5]
         steps: [0, 1, 2, 3, 4]
 
     steps:
@@ -82,7 +83,7 @@ jobs:
             echo "RUN #$i"
             for path in $(find problems/data/*)
             do
-              execute "./min-timespan-delivery run $path --strategy ${{ matrix.strategy }} --tabu-size-factor ${{ matrix.tabu-size-factor }} --disable-logging --extra ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+              execute "./min-timespan-delivery run $path --strategy ${{ matrix.strategy }} --tabu-size-factor ${{ matrix.tabu-size-factor }} --penalty-exponent ${{ matrix.penalty-exponent }} --disable-logging --extra ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
             done
           done
 
@@ -92,7 +93,7 @@ jobs:
         uses: actions/upload-artifact@v4
         if: ${{ always() }}
         with:
-          name: output-${{ matrix.strategy }}-${{ matrix.tabu-size-factor }}-${{ matrix.steps }}
+          name: output-${{ matrix.strategy }}-${{ matrix.tabu-size-factor }}-${{ matrix.penalty-exponent }}-${{ matrix.steps }}
           path: outputs/*
 
   summary:
