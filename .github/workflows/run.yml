@@ -82,7 +82,7 @@ jobs:
             echo "RUN #$i"
             for path in $(find problems/data/*)
             do
-              execute "./min-timespan-delivery run $path --strategy ${{ matrix.strategy }} --tabu-size-factor ${{ matrix.tabu-size-factor }} --penalty-exponent ${{ matrix.penalty-exponent }} --disable-logging --extra ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+              execute "./min-timespan-delivery run $path --fix-iteration 10000 --strategy ${{ matrix.strategy }} --tabu-size-factor ${{ matrix.tabu-size-factor }} --penalty-exponent ${{ matrix.penalty-exponent }} --disable-logging --extra ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
             done
           done
 
