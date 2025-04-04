@@ -107,7 +107,7 @@ pub enum Commands {
         config: EnergyModel,
 
         /// Tabu size of each neighborhood, final value = a1 * base
-        #[arg(long, default_value_t = 1.0)]
+        #[arg(long, default_value_t = 0.5)]
         tabu_size_factor: f64,
 
         /// Speed type of drones.
