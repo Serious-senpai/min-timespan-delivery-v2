@@ -120,7 +120,7 @@ fn _update_violation<const N: usize>(violation: f64) {
         value /= 1.5;
     };
 
-    PENALTY_COEFF[N].store(value.clamp(1e-3, 1e3), Ordering::Relaxed)
+    PENALTY_COEFF[N].store(value.clamp(1.0, 1e3), Ordering::Relaxed)
 }
 
 impl Solution {
@@ -135,7 +135,8 @@ impl Solution {
         let mut fixed_time_violation = 0.0;
         for routes in &truck_routes {
             working_time = working_time.max(routes.iter().map(|r| r.working_time()).sum());
-            capacity_violation += routes.iter().map(|r| r.capacity_violation()).sum::<f64>();
+            capacity_violation +=
+                routes.iter().map(|r| r.capacity_violation()).sum::<f64>() / CONFIG.truck.capacity;
             waiting_time_violation += routes
                 .iter()
                 .map(|r| r.waiting_time_violation())
@@ -144,7 +145,8 @@ impl Solution {
         for routes in &drone_routes {
             working_time = working_time.max(routes.iter().map(|r| r.working_time()).sum::<f64>());
             energy_violation += routes.iter().map(|r| r.energy_violation).sum::<f64>();
-            capacity_violation += routes.iter().map(|r| r.capacity_violation()).sum::<f64>();
+            capacity_violation += routes.iter().map(|r| r.capacity_violation()).sum::<f64>()
+                / CONFIG.drone.capacity();
             waiting_time_violation += routes
                 .iter()
                 .map(|r| r.waiting_time_violation())
@@ -160,6 +162,10 @@ impl Solution {
             .iter()
             .map(|r| r.iter().map(|r| r.working_time()).sum())
             .collect();
+
+        energy_violation /= CONFIG.drone.battery();
+        waiting_time_violation /= CONFIG.waiting_time_limit;
+        fixed_time_violation /= CONFIG.drone.fixed_time();
 
         Solution {
             truck_routes,
@@ -180,10 +186,12 @@ impl Solution {
 
     pub fn cost(&self) -> f64 {
         self.working_time
-            + penalty_coeff::<0>() * self.energy_violation
-            + penalty_coeff::<1>() * self.capacity_violation
-            + penalty_coeff::<2>() * self.waiting_time_violation
-            + penalty_coeff::<3>() * self.fixed_time_violation
+            * (1.0
+                + penalty_coeff::<0>() * self.energy_violation
+                + penalty_coeff::<1>() * self.capacity_violation
+                + penalty_coeff::<2>() * self.waiting_time_violation
+                + penalty_coeff::<3>() * self.fixed_time_violation)
+                .powf(CONFIG.penalty_exponent)
     }
 
     pub fn hamming_distance(&self, other: &Solution) -> usize {
