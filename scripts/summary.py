@@ -152,6 +152,7 @@ if __name__ == "__main__":
                     milp_result = milp / f"result_{problem}.json"
                     milp_data: Any = defaultdict(str)
                     if milp_result.is_file():
+                        milp_data["Solve_Time"] = 36000
                         with milp_result.open("r", encoding="utf-8") as reader:
                             milp_data.update(json.load(reader))
 

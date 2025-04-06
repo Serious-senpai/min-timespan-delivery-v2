@@ -488,9 +488,9 @@ pub static CONFIG: LazyLock<Config> = LazyLock::new(|| {
                 customers_count += 1;
 
                 let (_, [_x, _y, _demand]) = c.extract::<3>();
-                x.push(1609.34 * _x.parse::<f64>().unwrap());
-                y.push(1609.34 * _y.parse::<f64>().unwrap());
-                demands.push(0.453592 * _demand.parse::<f64>().unwrap());
+                x.push(_x.parse::<f64>().unwrap());
+                y.push(_y.parse::<f64>().unwrap());
+                demands.push(_demand.parse::<f64>().unwrap());
                 dronable.push(true);
             }
 
