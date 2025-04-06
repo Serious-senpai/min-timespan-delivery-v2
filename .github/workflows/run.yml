@@ -20,11 +20,17 @@ jobs:
         with:
           submodules: recursive
 
+      - name: View system info
+        run: lscpu
+
       - name: Setup Rust
         run: curl --proto '=https' --tlsv1.2 https://sh.rustup.rs -sSf | sh -s -- --default-toolchain=1.85 -y
 
       - name: Compile source files
         run: cargo build --release
+
+      - name: Display help menu
+        run: target/release/min-timespan-delivery run --help
 
       - name: Upload executable
         uses: actions/upload-artifact@v4
