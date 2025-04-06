@@ -400,7 +400,9 @@ pub struct Config {
     pub y: Vec<f64>,
     pub demands: Vec<f64>,
     pub dronable: Vec<bool>,
-    pub distances: Vec<Vec<f64>>,
+
+    pub truck_distances: Vec<Vec<f64>>,
+    pub drone_distances: Vec<Vec<f64>>,
 
     pub truck: TruckConfig,
     pub drone: DroneConfig,
@@ -436,6 +438,8 @@ pub static CONFIG: LazyLock<Config> = LazyLock::new(|| {
             tabu_size_factor,
             speed_type,
             range_type,
+            truck_d,
+            drone_d,
             trucks_count,
             drones_count,
             waiting_time_limit,
@@ -490,12 +494,8 @@ pub static CONFIG: LazyLock<Config> = LazyLock::new(|| {
                 dronable.push(true);
             }
 
-            let mut distances = vec![vec![0.0; customers_count + 1]; customers_count + 1];
-            for i in 0..customers_count + 1 {
-                for j in 0..customers_count + 1 {
-                    distances[i][j] = ((x[i] - x[j]).powi(2) + (y[i] - y[j]).powi(2)).sqrt();
-                }
-            }
+            let truck_distances = truck_d.matrix(&x, &y);
+            let drone_distances = drone_d.matrix(&x, &y);
 
             let truck = serde_json::from_str::<TruckConfig>(include_str!(
                 "../problems/config_parameter/truck_config.json"
@@ -515,7 +515,8 @@ pub static CONFIG: LazyLock<Config> = LazyLock::new(|| {
                 y,
                 demands,
                 dronable,
-                distances,
+                truck_distances,
+                drone_distances,
                 truck,
                 drone,
                 problem,

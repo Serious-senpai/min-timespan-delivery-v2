@@ -243,12 +243,15 @@ impl Solution {
     }
 
     pub fn initialize() -> Solution {
-        fn _sort_cluster_with_starting_point(cluster: &mut [usize], mut start: usize) {
+        fn _sort_cluster_with_starting_point(
+            cluster: &mut [usize],
+            mut start: usize,
+            distance: &[Vec<f64>],
+        ) {
             if cluster.is_empty() {
                 return;
             }
 
-            let distance = &CONFIG.distances;
             for i in 0..cluster.len() {
                 let mut min_distance = f64::INFINITY;
                 let mut min_idx = 0;
@@ -375,7 +378,9 @@ impl Solution {
                 }
             }
 
-            cluster.sort_by(|&i, &j| CONFIG.distances[0][i].total_cmp(&CONFIG.distances[0][j]));
+            cluster.sort_by(|&i, &j| {
+                CONFIG.drone_distances[0][i].total_cmp(&CONFIG.drone_distances[0][j])
+            });
             for &customer in cluster.iter() {
                 if dronable[customer] {
                     queue.push(_State {
@@ -408,16 +413,18 @@ impl Solution {
             let mut min_distance = f64::INFINITY;
             let mut min_idx = 0;
             for &customer in &clusters[clusters_mapping[parent]] {
-                if truckable[customer] && CONFIG.distances[parent][customer] < min_distance {
-                    min_distance = CONFIG.distances[parent][customer];
+                if truckable[customer] && CONFIG.truck_distances[parent][customer] < min_distance {
+                    min_distance = CONFIG.truck_distances[parent][customer];
                     min_idx = customer;
                 }
             }
 
             if min_idx == 0 {
                 for &customer in global.iter() {
-                    if truckable[customer] && CONFIG.distances[parent][customer] < min_distance {
-                        min_distance = CONFIG.distances[parent][customer];
+                    if truckable[customer]
+                        && CONFIG.truck_distances[parent][customer] < min_distance
+                    {
+                        min_distance = CONFIG.truck_distances[parent][customer];
                         min_idx = customer;
                     }
                 }
@@ -450,16 +457,17 @@ impl Solution {
             let mut min_distance = f64::INFINITY;
             let mut min_idx = 0;
             for &customer in &clusters[clusters_mapping[parent]] {
-                if dronable[customer] && CONFIG.distances[parent][customer] < min_distance {
-                    min_distance = CONFIG.distances[parent][customer];
+                if dronable[customer] && CONFIG.drone_distances[parent][customer] < min_distance {
+                    min_distance = CONFIG.drone_distances[parent][customer];
                     min_idx = customer;
                 }
             }
 
             if min_idx == 0 {
                 for &customer in global.iter() {
-                    if dronable[customer] && CONFIG.distances[parent][customer] < min_distance {
-                        min_distance = CONFIG.distances[parent][customer];
+                    if dronable[customer] && CONFIG.drone_distances[parent][customer] < min_distance
+                    {
+                        min_distance = CONFIG.drone_distances[parent][customer];
                         min_idx = customer;
                     }
                 }

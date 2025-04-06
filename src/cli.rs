@@ -1,6 +1,7 @@
 use std::fmt;
 
 use clap::{Parser, Subcommand, ValueEnum};
+use num_traits::Float;
 use serde::{Deserialize, Serialize};
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, ValueEnum, Deserialize, Serialize)]
@@ -75,6 +76,51 @@ impl fmt::Display for Strategy {
     }
 }
 
+#[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, ValueEnum, Deserialize, Serialize)]
+pub enum DistanceType {
+    #[serde(rename = "manhattan")]
+    Manhattan,
+    #[serde(rename = "euclidean")]
+    Euclidean,
+}
+
+impl fmt::Display for DistanceType {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "{}",
+            match self {
+                Self::Manhattan => "manhattan",
+                Self::Euclidean => "euclidean",
+            }
+        )
+    }
+}
+
+impl DistanceType {
+    pub fn matrix<T>(&self, x: &[T], y: &[T]) -> Vec<Vec<T>>
+    where
+        T: Float,
+    {
+        let n = x.len();
+        assert_eq!(n, y.len());
+
+        let mut matrix = vec![vec![T::zero(); n]; n];
+        for i in 0..n {
+            for j in 0..n {
+                let dx = x[i] - x[j];
+                let dy = y[i] - y[j];
+                matrix[i][j] = match self {
+                    DistanceType::Manhattan => dx.abs() + dy.abs(),
+                    DistanceType::Euclidean => (dx * dx + dy * dy).sqrt(),
+                };
+            }
+        }
+
+        matrix
+    }
+}
+
 #[derive(Debug, Parser)]
 #[command(
     long_about = "The min-timespan parallel technician-and-drone scheduling in door-to-door sampling service system",
@@ -117,6 +163,14 @@ pub enum Commands {
         /// Range type of drones.
         #[arg(long, default_value_t = ConfigType::High)]
         range_type: ConfigType,
+
+        /// Distance type to use for trucks.
+        #[arg(long, default_value_t = DistanceType::Euclidean)]
+        truck_d: DistanceType,
+
+        /// Distance type to use for drones.
+        #[arg(long, default_value_t = DistanceType::Euclidean)]
+        drone_d: DistanceType,
 
         /// The number of trucks to override. Otherwise, use the default value.
         #[arg(long)]

@@ -23,15 +23,15 @@ pub struct _RouteData {
 }
 
 impl _RouteData {
-    fn _construct(customers: Vec<usize>) -> _RouteData {
-        assert!(customers.first() == Some(&0));
-        assert!(customers.last() == Some(&0));
+    fn _construct(customers: Vec<usize>, distances: &[Vec<f64>]) -> _RouteData {
+        assert_eq!(customers.first(), Some(&0));
+        assert_eq!(customers.last(), Some(&0));
         assert!(customers.len() >= 3);
 
         let mut distance = 0.0;
         let mut weight = 0.0;
         for i in 0..customers.len() - 1 {
-            distance += CONFIG.distances[customers[i]][customers[i + 1]];
+            distance += distances[customers[i]][customers[i + 1]];
             weight += CONFIG.demands[customers[i]];
         }
 
@@ -543,6 +543,7 @@ impl Route for TruckRoute {
     fn new(customers: Vec<usize>) -> Rc<TruckRoute> {
         Rc::new(TruckRoute::_construct(_RouteData::_construct(
             customers.clone(),
+            &CONFIG.truck_distances,
         )))
     }
 
@@ -577,7 +578,7 @@ impl TruckRoute {
         let mut waiting_time_violation = 0.0;
         let mut accumulate_time = 0.0;
         for i in 1..customers.len() - 1 {
-            accumulate_time += CONFIG.distances[customers[i - 1]][customers[i]] / speed;
+            accumulate_time += CONFIG.truck_distances[customers[i - 1]][customers[i]] / speed;
             waiting_time_violation +=
                 (working_time - accumulate_time - CONFIG.waiting_time_limit).max(0.0);
         }
@@ -624,6 +625,7 @@ impl Route for DroneRoute {
     fn new(customers: Vec<usize>) -> Rc<DroneRoute> {
         Rc::new(DroneRoute::_construct(_RouteData::_construct(
             customers.clone(),
+            &CONFIG.drone_distances,
         )))
     }
 
@@ -655,7 +657,7 @@ impl Route for DroneRoute {
 impl DroneRoute {
     fn _construct(data: _RouteData) -> DroneRoute {
         let customers = &data.customers;
-        let distances = &CONFIG.distances;
+        let distances = &CONFIG.drone_distances;
         let drone = &CONFIG.drone;
 
         let _working_time = CONFIG.drone.cruise_time(data.value.distance)
