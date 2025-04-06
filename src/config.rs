@@ -459,10 +459,11 @@ pub static CONFIG: LazyLock<Config> = LazyLock::new(|| {
         } => {
             let trucks_count_regex = Regex::new(r"number_truck (\d+)").unwrap();
             let drones_count_regex = Regex::new(r"number_drone (\d+)").unwrap();
-            let customers_regex = RegexBuilder::new(r"^(-?[\d\.]+)\s+(-?[\d\.]+)\s+([\d\.]+)$")
-                .multi_line(true)
-                .build()
-                .unwrap();
+            let customers_regex =
+                RegexBuilder::new(r"^\s*(-?[\d\.]+)\s+(-?[\d\.]+)\s+(0|1)\s+([\d\.]+)\s*$")
+                    .multi_line(true)
+                    .build()
+                    .unwrap();
 
             let data = fs::read_to_string(&problem).unwrap();
 
@@ -491,11 +492,11 @@ pub static CONFIG: LazyLock<Config> = LazyLock::new(|| {
             for c in customers_regex.captures_iter(&data) {
                 customers_count += 1;
 
-                let (_, [_x, _y, _demand]) = c.extract::<3>();
+                let (_, [_x, _y, _dronable, _demand]) = c.extract::<4>();
                 x.push(_x.parse::<f64>().unwrap());
                 y.push(_y.parse::<f64>().unwrap());
+                dronable.push(matches!(_dronable, "1"));
                 demands.push(_demand.parse::<f64>().unwrap());
-                dronable.push(true);
             }
 
             let truck_distances = truck_d.matrix(&x, &y);
