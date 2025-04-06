@@ -74,10 +74,10 @@ if __name__ == "__main__":
             "Faster [%]",
             "Weight per truck route [kg]",
             "Customers per truck route",
-            "Truck route count",
+            "Truck routes count",
             "Weight per drone route [kg]",
             "Customers per drone route",
-            "Drone route count",
+            "Drone routes count",
             "Strategy",
         ]
         csv.write(",".join(headers))

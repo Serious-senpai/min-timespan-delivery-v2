@@ -530,7 +530,11 @@ impl Solution {
                                 &global,
                                 &truck_routes,
                                 &mut drone_routes,
-                                packed.index,
+                                if CONFIG.single_drone_route {
+                                    0
+                                } else {
+                                    packed.index
+                                },
                                 packed.vehicle,
                             );
                         }
@@ -542,17 +546,19 @@ impl Solution {
                             *route = route.pop();
                         }
 
-                        truck_next(
-                            &truckable,
-                            &clusters,
-                            &clusters_mapping,
-                            &mut queue,
-                            &global,
-                            &mut truck_routes,
-                            &drone_routes,
-                            0,
-                            packed.vehicle,
-                        );
+                        if !CONFIG.single_truck_route {
+                            truck_next(
+                                &truckable,
+                                &clusters,
+                                &clusters_mapping,
+                                &mut queue,
+                                &global,
+                                &mut truck_routes,
+                                &drone_routes,
+                                0,
+                                packed.vehicle,
+                            );
+                        }
                     } else {
                         if packed.parent == 0 {
                             drone_routes[packed.vehicle].pop();
@@ -596,7 +602,11 @@ impl Solution {
                             &global,
                             &truck_routes,
                             &mut drone_routes,
-                            packed.parent,
+                            if CONFIG.single_drone_route {
+                                0
+                            } else {
+                                packed.parent
+                            },
                             packed.vehicle,
                         );
                     }

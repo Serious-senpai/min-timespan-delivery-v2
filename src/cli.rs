@@ -206,6 +206,14 @@ pub enum Commands {
         #[arg(long, default_value_t = 0.4)]
         penalty_exponent: f64,
 
+        /// Allow one route per truck only (this route can still serve multiple customers)
+        #[arg(long)]
+        single_truck_route: bool,
+
+        /// Allow one customer per drone route only (each drone can still perform multiple routes)
+        #[arg(long)]
+        single_drone_route: bool,
+
         /// The verbose mode
         #[arg(short, long)]
         verbose: bool,
