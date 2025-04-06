@@ -1,6 +1,7 @@
-number_truck 1
-number_drone 1
-Customers 10
+trucks_count 1
+drones_count 1
+customers 10
+depot 0 0
 Coordinate X         Coordinate Y         Dronable Demand
 7457.180783419839    12365.565028717278   1        0.3313452338148682  
 4372.908281111943    14484.964686021034   1        0.39082699164425894 

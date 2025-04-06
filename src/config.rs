@@ -457,8 +457,9 @@ pub static CONFIG: LazyLock<Config> = LazyLock::new(|| {
             disable_logging,
             extra,
         } => {
-            let trucks_count_regex = Regex::new(r"number_truck (\d+)").unwrap();
-            let drones_count_regex = Regex::new(r"number_drone (\d+)").unwrap();
+            let trucks_count_regex = Regex::new(r"trucks_count (\d+)").unwrap();
+            let drones_count_regex = Regex::new(r"drones_count (\d+)").unwrap();
+            let depot_regex = Regex::new(r"depot (-?[\d\.]+)\s+(-?[\d\.]+)").unwrap();
             let customers_regex =
                 RegexBuilder::new(r"^\s*(-?[\d\.]+)\s+(-?[\d\.]+)\s+(0|1)\s+([\d\.]+)\s*$")
                     .multi_line(true)
@@ -484,9 +485,18 @@ pub static CONFIG: LazyLock<Config> = LazyLock::new(|| {
                 })
                 .expect("Missing drones count");
 
+            let depot = depot_regex
+                .captures(&data)
+                .and_then(|caps| {
+                    let x = caps.get(1)?.as_str().parse::<f64>().ok()?;
+                    let y = caps.get(2)?.as_str().parse::<f64>().ok()?;
+                    Some((x, y))
+                })
+                .expect("Missing depot coordinates");
+
             let mut customers_count = 0;
-            let mut x = vec![0.0];
-            let mut y = vec![0.0];
+            let mut x = vec![depot.0];
+            let mut y = vec![depot.1];
             let mut demands = vec![0.0];
             let mut dronable = vec![true];
             for c in customers_regex.captures_iter(&data) {
