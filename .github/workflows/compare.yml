@@ -1,0 +1,150 @@
+name: Compare algorithm
+
+on: push
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Compile source files
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: View system info
+        run: lscpu
+
+      - name: Setup Rust
+        run: curl --proto '=https' --tlsv1.2 https://sh.rustup.rs -sSf | sh -s -- --default-toolchain=1.85 -y
+
+      - name: Compile source files
+        run: cargo build --release
+
+      - name: Display help menu
+        run: target/release/min-timespan-delivery run --help
+
+      - name: Upload executable
+        uses: actions/upload-artifact@v4
+        with:
+          name: executable
+          path: target/release/min-timespan-delivery
+
+  solve:
+    name: Run algorithm
+    runs-on: ubuntu-latest
+    needs: build
+    strategy:
+      fail-fast: false
+      matrix:
+        problem: [att48, berlin52, eil101, gr120, pr152, gr229]
+        arguments: [
+          "--el 80 --sp 2 --dc 1 --dp 1",
+          "--el 0 --sp 2 --dc 1 --dp 1",
+          "--el 20 --sp 2 --dc 1 --dp 1",
+          "--el 40 --sp 2 --dc 1 --dp 1",
+          "--el 60 --sp 2 --dc 1 --dp 1",
+          "--el 100 --sp 2 --dc 1 --dp 1",
+          "--el 80 --sp 1 --dc 1 --dp 1",
+          "--el 80 --sp 3 --dc 1 --dp 1",
+          "--el 80 --sp 4 --dc 1 --dp 1",
+          "--el 80 --sp 5 --dc 1 --dp 1",
+          "--el 80 --sp 2 --dc 2 --dp 1",
+          "--el 80 --sp 2 --dc 3 --dp 1",
+          "--el 80 --sp 2 --dc 4 --dp 1",
+          "--el 80 --sp 2 --dc 5 --dp 1",
+          "--el 80 --sp 2 --dc 1 --dp 2"
+        ]
+        steps: [0, 1]
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Download executable
+        uses: actions/download-artifact@v4
+        with:
+          name: executable
+          path: .
+
+      - name: Update permission
+        run: chmod +x min-timespan-delivery
+
+      - name: Run algorithm
+        run: |
+          exitcode=0
+          set +e
+          let begin=5*${{ matrix.steps }}+1
+          let end=$begin+4
+
+          execute() {
+            command=$1
+            echo "Running \"$command\""
+            $command
+
+            status=$?
+            if [ $status -ne 0 ]; then
+              echo "::error::\"$command\" exit with status $status"
+              exitcode=1
+            fi
+          }
+
+          arguments=$(python scripts/saleu.py ${{ matrix.problem }} ${{ matrix.arguments }})
+          for i in $(seq $begin $end)
+          do
+            echo "RUN #$i"
+            execute "./min-timespan-delivery $arguments --disable-logging --extra ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          done
+
+          exit $exitcode
+
+      - name: Upload results
+        uses: actions/upload-artifact@v4
+        if: ${{ always() }}
+        with:
+          name: output-${{ matrix.steps }}
+          path: outputs/*
+
+  summary:
+    name: Summarize results
+    runs-on: ubuntu-latest
+    if: ${{ always() }}
+    needs: solve
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Download results
+        uses: actions/download-artifact@v4
+        with:
+          path: outputs/
+          pattern: output-*
+          merge-multiple: true
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Summarize results
+        run: python scripts/summary.py
+
+      - name: Upload summary files
+        uses: actions/upload-artifact@v4
+        if: ${{ always() }}
+        with:
+          name: summary-csv
+          path: |
+            outputs/summary.csv
+            outputs/summary.db

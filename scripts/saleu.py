@@ -14,7 +14,7 @@ class Namespace(argparse.Namespace):
         instance: str
         el: Literal[0, 20, 40, 60, 80, 100]
         sp: Literal[1, 2, 3, 4, 5]
-        drones_count: Literal[1, 2, 3, 4, 5]
+        dc: Literal[1, 2, 3, 4, 5]
         dp: Literal[1, 2]
 
 
@@ -28,7 +28,7 @@ if __name__ == "__main__":
     parser.add_argument("instance", type=str, help="Name of the original TSPLIB instance")
     parser.add_argument("--el", type=int, default=80, choices=[0, 20, 40, 60, 80, 100], help="Percentage of drone-eligible customers")
     parser.add_argument("--sp", type=int, default=2, choices=[1, 2, 3, 4, 5], help="Drone speed compared to truck")
-    parser.add_argument("--drones-count", type=int, default=1, choices=[1, 2, 3, 4, 5], help="Number of drones")
+    parser.add_argument("--dc", type=int, default=1, choices=[1, 2, 3, 4, 5], help="Number of drones")
     parser.add_argument("--dp", type=int, default=1, choices=[1, 2], help="Depot location type")
     args = parser.parse_args(namespace=Namespace())
 
@@ -68,7 +68,7 @@ if __name__ == "__main__":
         delete=False,
     ) as output:
         output.write("trucks_count 1\n")
-        output.write(f"drones_count {args.drones_count}\n")
+        output.write(f"drones_count {args.dc}\n")
         output.write(f"customers {len(x)}\n")
         output.write(f"depot {depot[0]} {depot[1]}\n")
 
