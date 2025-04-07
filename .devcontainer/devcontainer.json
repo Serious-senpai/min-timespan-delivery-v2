@@ -21,6 +21,9 @@
                 "rust-analyzer.linkedProjects": [
                     "${containerWorkspaceFolder}/Cargo.toml"
                 ],
+                "[github-actions-workflow]": {
+                    "editor.tabSize": 2
+                },
                 "[rust]": {
                     "editor.tabSize": 4
                 }

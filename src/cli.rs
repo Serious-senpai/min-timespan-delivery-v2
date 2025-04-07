@@ -148,6 +148,14 @@ pub enum Commands {
         /// Path to the coordinate file
         problem: String,
 
+        /// Path to truck config file
+        #[arg(long, default_value_t = String::from("problems/config_parameter/truck_config.json"))]
+        truck_cfg: String,
+
+        /// Path to drone config file
+        #[arg(long, default_value_t = String::from("problems/config_parameter/drone_endurance_config.json"))]
+        drone_cfg: String,
+
         /// The energy consumption model to use.
         #[arg(short, long, default_value_t = EnergyModel::Endurance)]
         config: EnergyModel,
@@ -166,11 +174,11 @@ pub enum Commands {
 
         /// Distance type to use for trucks.
         #[arg(long, default_value_t = DistanceType::Euclidean)]
-        truck_d: DistanceType,
+        truck_distance: DistanceType,
 
         /// Distance type to use for drones.
         #[arg(long, default_value_t = DistanceType::Euclidean)]
-        drone_d: DistanceType,
+        drone_distance: DistanceType,
 
         /// The number of trucks to override. Otherwise, use the default value.
         #[arg(long)]

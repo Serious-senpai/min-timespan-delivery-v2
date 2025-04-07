@@ -181,16 +181,16 @@ impl DroneConfig {
     const G: f64 = 9.8;
 
     fn new(
+        path: &String,
         config: cli::EnergyModel,
         speed_type: cli::ConfigType,
         range_type: cli::ConfigType,
     ) -> DroneConfig {
         match config {
             cli::EnergyModel::Linear => {
-                let data = serde_json::from_str::<_LinearFileJSON>(include_str!(
-                    "../problems/config_parameter/drone_linear_config.json"
-                ))
-                .unwrap();
+                let data =
+                    serde_json::from_str::<_LinearFileJSON>(&fs::read_to_string(path).unwrap())
+                        .unwrap();
 
                 for config in [data.item1, data.item2, data.item3, data.item4] {
                     if config.speed_type == speed_type && config.range_type == range_type {
@@ -207,10 +207,9 @@ impl DroneConfig {
                 panic!("No matching linear config")
             }
             cli::EnergyModel::NonLinear => {
-                let data = serde_json::from_str::<_NonLinearFileJSON>(include_str!(
-                    "../problems/config_parameter/drone_nonlinear_config.json"
-                ))
-                .unwrap();
+                let data =
+                    serde_json::from_str::<_NonLinearFileJSON>(&fs::read_to_string(path).unwrap())
+                        .unwrap();
 
                 for config in [data.item1, data.item2, data.item3, data.item4] {
                     if config.speed_type == speed_type && config.range_type == range_type {
@@ -261,10 +260,9 @@ impl DroneConfig {
                 panic!("No matching non-linear config")
             }
             cli::EnergyModel::Endurance => {
-                let data = serde_json::from_str::<_EnduranceFileJSON>(include_str!(
-                    "../problems/config_parameter/drone_endurance_config.json"
-                ))
-                .unwrap();
+                let data =
+                    serde_json::from_str::<_EnduranceFileJSON>(&fs::read_to_string(path).unwrap())
+                        .unwrap();
 
                 for config in [data.item1, data.item2, data.item3, data.item4] {
                     if config.speed_type == speed_type && config.range_type == range_type {
@@ -436,12 +434,14 @@ pub static CONFIG: LazyLock<Config> = LazyLock::new(|| {
         }
         cli::Commands::Run {
             problem,
+            truck_cfg,
+            drone_cfg,
             config,
             tabu_size_factor,
             speed_type,
             range_type,
-            truck_d,
-            drone_d,
+            truck_distance,
+            drone_distance,
             trucks_count,
             drones_count,
             waiting_time_limit,
@@ -509,14 +509,13 @@ pub static CONFIG: LazyLock<Config> = LazyLock::new(|| {
                 demands.push(_demand.parse::<f64>().unwrap());
             }
 
-            let truck_distances = truck_d.matrix(&x, &y);
-            let drone_distances = drone_d.matrix(&x, &y);
+            let truck_distances = truck_distance.matrix(&x, &y);
+            let drone_distances = drone_distance.matrix(&x, &y);
 
-            let truck = serde_json::from_str::<TruckConfig>(include_str!(
-                "../problems/config_parameter/truck_config.json"
-            ))
-            .unwrap();
-            let drone = DroneConfig::new(config, speed_type, range_type);
+            let truck =
+                serde_json::from_str::<TruckConfig>(&fs::read_to_string(truck_cfg).unwrap())
+                    .unwrap();
+            let drone = DroneConfig::new(&drone_cfg, config, speed_type, range_type);
 
             for i in 1..customers_count + 1 {
                 dronable[i] = dronable[i] && demands[i] <= drone.capacity();

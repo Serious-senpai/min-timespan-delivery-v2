@@ -170,7 +170,7 @@ if __name__ == "__main__":
 
                     segments = [
                         wrap(problem),
-                        "",
+                        str(truck_customers + drone_customers),
                         str(config["trucks_count"]),
                         str(config["drones_count"]),
                         str(data["iterations"]),
@@ -220,7 +220,7 @@ if __name__ == "__main__":
                         query,
                         (
                             problem,
-                            int(problem.split(".")[0]),
+                            truck_customers + drone_customers,
                             config["trucks_count"],
                             config["drones_count"],
                             data["iterations"],
