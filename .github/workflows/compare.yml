@@ -47,21 +47,21 @@ jobs:
       matrix:
         problem: [att48, berlin52, eil101, gr120, pr152, gr229]
         arguments: [
-          "--el 80 --sp 2 --dc 1 --dp 1",
-          "--el 0 --sp 2 --dc 1 --dp 1",
-          "--el 20 --sp 2 --dc 1 --dp 1",
-          "--el 40 --sp 2 --dc 1 --dp 1",
-          "--el 60 --sp 2 --dc 1 --dp 1",
-          "--el 100 --sp 2 --dc 1 --dp 1",
-          "--el 80 --sp 1 --dc 1 --dp 1",
-          "--el 80 --sp 3 --dc 1 --dp 1",
-          "--el 80 --sp 4 --dc 1 --dp 1",
-          "--el 80 --sp 5 --dc 1 --dp 1",
-          "--el 80 --sp 2 --dc 2 --dp 1",
-          "--el 80 --sp 2 --dc 3 --dp 1",
-          "--el 80 --sp 2 --dc 4 --dp 1",
-          "--el 80 --sp 2 --dc 5 --dp 1",
-          "--el 80 --sp 2 --dc 1 --dp 2"
+          {el: 80, sp: 2, dc: 1, dp: 1},
+          {el: 0, sp: 2, dc: 1, dp: 1},
+          {el: 20, sp: 2, dc: 1, dp: 1},
+          {el: 40, sp: 2, dc: 1, dp: 1},
+          {el: 60, sp: 2, dc: 1, dp: 1},
+          {el: 100, sp: 2, dc: 1, dp: 1},
+          {el: 80, sp: 1, dc: 1, dp: 1},
+          {el: 80, sp: 3, dc: 1, dp: 1},
+          {el: 80, sp: 4, dc: 1, dp: 1},
+          {el: 80, sp: 5, dc: 1, dp: 1},
+          {el: 80, sp: 2, dc: 2, dp: 1},
+          {el: 80, sp: 2, dc: 3, dp: 1},
+          {el: 80, sp: 2, dc: 4, dp: 1},
+          {el: 80, sp: 2, dc: 5, dp: 1},
+          {el: 80, sp: 2, dc: 1, dp: 2}
         ]
         steps: [0, 1]
 
@@ -99,7 +99,7 @@ jobs:
             fi
           }
 
-          arguments=$(python scripts/saleu.py ${{ matrix.problem }} ${{ matrix.arguments }})
+          arguments=$(python scripts/saleu.py ${{ matrix.problem }} --el ${{ matrix.arguments.el }} --sp ${{ matrix.arguments.sp }} --dc ${{ matrix.arguments.dc }} --dp ${{ matrix.arguments.dp }})
           for i in $(seq $begin $end)
           do
             echo "RUN #$i"
@@ -112,7 +112,7 @@ jobs:
         uses: actions/upload-artifact@v4
         if: ${{ always() }}
         with:
-          name: output-${{ matrix.steps }}
+          name: output-${{ matrix.problem }}-${{ matrix.arguments.el }}-${{ matrix.arguments.sp }}-${{ matrix.arguments.dc }}-${{ matrix.arguments.dp }}-${{ matrix.steps }}
           path: outputs/*
 
   summary:
