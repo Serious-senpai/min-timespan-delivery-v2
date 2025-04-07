@@ -100,7 +100,7 @@ if __name__ == "__main__":
     ) as drone:
         common = {
             "capacity [kg]": 1,
-            "FixedTime (s)": 86400,
+            "FixedTime (s)": 31557600,
             "V_max (m/s)": args.sp,
         }
         json.dump(
@@ -133,6 +133,6 @@ if __name__ == "__main__":
 
     print(
         f"run {output.name} --truck-cfg {truck.name} --drone-cfg {drone.name} -c endurance "
-        "--truck-distance manhattan --drone-distance euclidean --waiting-time-limit 86400 "
+        "--truck-distance manhattan --drone-distance euclidean --waiting-time-limit 31557600 "
         "--single-truck-route --single-drone-route",
     )
