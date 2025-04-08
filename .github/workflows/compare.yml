@@ -115,8 +115,8 @@ jobs:
           name: output-${{ matrix.problem }}-${{ matrix.arguments.el }}-${{ matrix.arguments.sp }}-${{ matrix.arguments.dc }}-${{ matrix.arguments.dp }}-${{ matrix.steps }}
           path: outputs/*
 
-  summary:
-    name: Summarize results
+  compare:
+    name: Compare results to other algorithms
     runs-on: ubuntu-latest
     if: ${{ always() }}
     needs: solve
@@ -138,7 +138,7 @@ jobs:
           python-version: "3.12"
 
       - name: Summarize results
-        run: python scripts/summary.py
+        run: python scripts/compare.py
 
       - name: Upload summary files
         uses: actions/upload-artifact@v4

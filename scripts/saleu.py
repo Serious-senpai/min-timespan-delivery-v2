@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import argparse
 import json
-import re
 import tempfile
 from math import sqrt
 from pathlib import Path
@@ -32,39 +31,37 @@ if __name__ == "__main__":
     parser.add_argument("--dp", type=int, default=1, choices=[1, 2], help="Depot location type")
     args = parser.parse_args(namespace=Namespace())
 
-    tsp = ROOT.joinpath("problems", "tsplib", f"{args.instance}.tsp").read_text(encoding="utf-8")
-    coordinates = re.compile(r"^\s*(\d+)\s+(-?[\d\.]+)\s+(-?[\d\.]+)\s*$", flags=re.MULTILINE)
-
     x: List[float] = []
     y: List[float] = []
     dronable: List[bool] = []
     demands: List[float] = []
-    for match in coordinates.finditer(tsp):
-        _index, _x, _y = match.groups()
-        index = int(_index)
-        x.append(float(_x))
-        y.append(float(_y))
-        dronable.append(args.el == 100 or index % int(1 / (0.3 * (1 - args.el / 100))) != 0)
-        demands.append(0.0)  # Drone-eligibility is decided by `dronable` instead.
 
-    if args.dp == 1:
-        # Actually, the depot should be (max + min) / 2, but it seems like the original author
-        # made a mistake.
-        depot = (max(x) - min(x)) / 2, (max(y) - min(y)) / 2
-    else:
-        depot = min(x), min(y)
+    with ROOT.joinpath(
+        "problems",
+        "dell-amico",
+        "TSPLIB_Saleu",
+        "Instances",
+        f"{args.instance}_{args.dp - 1}_{args.el}.csv",
+    ).open("r", encoding="utf-8") as reader:
+        for line in reader.readlines():
+            _, _x_str, _y_str, _truck_only_str = map(str.strip, line.split(","))
+            x.append(float(_x_str))
+            y.append(float(_y_str))
+            dronable.append(_truck_only_str == "0")
+            demands.append(0.0)
 
-    dronable_index = [i for i, d in enumerate(dronable) if d]
-    dronable_index.sort(key=lambda i: euc(x[i] - depot[0], y[i] - depot[1]))
-    while len(dronable_index) > len(x) * args.el / 100:
-        index = dronable_index.pop()
-        dronable[index] = False
+    # The depot is the first and last customer in the list
+    depot = x[0], y[0]
+    x = x[1:-1]
+    y = y[1:-1]
+    dronable = dronable[1:-1]
+    demands = demands[1:-1]
 
     with tempfile.NamedTemporaryFile(
         "w",
         encoding="utf-8",
         suffix=".txt",
-        prefix=f"{args.instance}_",
+        prefix=f"{args.instance}_{args.el}_{args.sp}_{args.dc}_{args.dp}_",
         delete=False,
     ) as output:
         output.write("trucks_count 1\n")
