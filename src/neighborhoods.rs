@@ -353,6 +353,8 @@ impl Neighborhood {
     ) -> Option<Solution> {
         let intra = self.intra_route(solution, tabu_list, aspiration_cost);
         let inter = self.inter_route(solution, tabu_list, aspiration_cost);
+
+        #[allow(clippy::if_same_then_else)]
         let (result, mut tabu) = if intra.1.is_empty() {
             inter // Intra-route neighborhood is empty
         } else if inter.1.is_empty() {
