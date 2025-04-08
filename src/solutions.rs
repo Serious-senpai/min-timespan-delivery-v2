@@ -486,9 +486,7 @@ impl Solution {
         }
 
         while !global.is_empty() {
-            let packed = queue.pop().expect(&format!(
-                "A trivial solution cannot be constructed during initialization.\nThe following customers cannot be served: {:?}", global
-            ));
+            let packed = queue.pop().unwrap_or_else(|| panic!("A trivial solution cannot be constructed during initialization.\nThe following customers cannot be served: {:?}", global));
 
             let cluster = clusters_mapping[packed.index];
             match clusters[cluster].iter().position(|&x| x == packed.index) {
