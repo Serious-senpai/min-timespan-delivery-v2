@@ -144,6 +144,10 @@ if __name__ == "__main__":
                 "customers_per_drone_route REAL NOT NULL",
                 "drone_route_count INTEGER NOT NULL",
                 "strategy TEXT NOT NULL",
+                "el INTEGER NOT NULL",
+                "sp INTEGER NOT NULL",
+                "dc INTEGER NOT NULL",
+                "dp INTEGER NOT NULL",
             ]
 
             query = "CREATE TABLE summary(" + ", ".join(columns) + ")"
@@ -275,5 +279,9 @@ if __name__ == "__main__":
                             drone_customers / drone_route_count if drone_route_count > 0 else 0,
                             drone_route_count,
                             config["strategy"],
+                            el,
+                            sp,
+                            dc,
+                            dp,
                         )
                     )
