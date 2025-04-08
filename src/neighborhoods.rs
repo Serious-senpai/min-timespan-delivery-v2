@@ -113,7 +113,8 @@ impl Neighborhood {
                         ($original_routes_j:expr, $cloned_routes_j:expr, $one_customer_per_route_j:expr) => {
                             for (vehicle_j, routes_j) in $original_routes_j.iter().enumerate() {
                                 for (route_idx_j, route_j) in routes_j.iter().enumerate() {
-                                    if std::ptr::addr_eq(route_i, route_j) {
+                                    // Dirty trick to compare 2 routes (because each customer can only be served exactly once)
+                                    if route_i.data().customers[1] == route_j.data().customers[1] {
                                         continue;
                                     }
 
@@ -151,7 +152,7 @@ impl Neighborhood {
                                             }
                                             None => {
                                                 $cloned_routes_i[vehicle_i].swap_remove(route_idx_i);
-                                                if std::ptr::addr_eq(routes_i, routes_j) && route_idx_j == routes_j.len() - 1 {
+                                                if std::ptr::addr_eq(routes_i, routes_j) /* same vehicle */ && route_idx_j == routes_j.len() - 1 {
                                                     route_idx_j_after_swap_remove = route_idx_i;
                                                 }
                                             }
@@ -237,17 +238,17 @@ impl Neighborhood {
                             for (new_route_i, new_route_j, tabu) in
                                 route_i.inter_route_extract::<$type_j>(self)
                             {
-                                if $one_route_per_vehicle && !$cloned_routes_i[vehicle_i].is_empty()
-                                {
-                                    continue;
-                                }
-
                                 if $one_customer_per_route && new_route_j.data().customers.len() != 3 {
                                     continue;
                                 }
 
                                 $cloned_routes_i[vehicle_i][route_idx_i] = new_route_i;
                                 for vehicle_j in 0..$original_routes_j.len() {
+                                    if $one_route_per_vehicle && !$cloned_routes_j[vehicle_j].is_empty()
+                                    {
+                                        continue;
+                                    }
+
                                     $cloned_routes_j[vehicle_j].push(new_route_j.clone());
 
                                     let s = Solution::new(truck_cloned, drone_cloned);
@@ -349,14 +350,25 @@ impl Neighborhood {
         tabu_list: &mut Vec<Vec<usize>>,
         tabu_size: usize,
         aspiration_cost: f64,
-    ) -> Solution {
+    ) -> Option<Solution> {
         let intra = self.intra_route(solution, tabu_list, aspiration_cost);
         let inter = self.inter_route(solution, tabu_list, aspiration_cost);
-        let (result, mut tabu) = if intra.0.cost() < inter.0.cost() {
+
+        #[allow(clippy::if_same_then_else)]
+        let (result, mut tabu) = if intra.1.is_empty() {
+            inter // Intra-route neighborhood is empty
+        } else if inter.1.is_empty() {
+            intra // Inter-route neighborhood is empty
+        } else if intra.0.cost() < inter.0.cost() {
             intra
         } else {
             inter
         };
+
+        if tabu.is_empty() {
+            // Both neighborhoods are empty
+            return None;
+        }
 
         tabu.sort();
         match tabu_list.iter().position(|x| x == &tabu) {
@@ -371,6 +383,6 @@ impl Neighborhood {
             }
         }
 
-        result
+        Some(result)
     }
 }
