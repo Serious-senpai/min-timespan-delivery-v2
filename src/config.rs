@@ -181,16 +181,16 @@ impl DroneConfig {
     const G: f64 = 9.8;
 
     fn new(
+        path: &String,
         config: cli::EnergyModel,
         speed_type: cli::ConfigType,
         range_type: cli::ConfigType,
     ) -> DroneConfig {
         match config {
             cli::EnergyModel::Linear => {
-                let data = serde_json::from_str::<_LinearFileJSON>(include_str!(
-                    "../problems/config_parameter/drone_linear_config.json"
-                ))
-                .unwrap();
+                let data =
+                    serde_json::from_str::<_LinearFileJSON>(&fs::read_to_string(path).unwrap())
+                        .unwrap();
 
                 for config in [data.item1, data.item2, data.item3, data.item4] {
                     if config.speed_type == speed_type && config.range_type == range_type {
@@ -207,10 +207,9 @@ impl DroneConfig {
                 panic!("No matching linear config")
             }
             cli::EnergyModel::NonLinear => {
-                let data = serde_json::from_str::<_NonLinearFileJSON>(include_str!(
-                    "../problems/config_parameter/drone_nonlinear_config.json"
-                ))
-                .unwrap();
+                let data =
+                    serde_json::from_str::<_NonLinearFileJSON>(&fs::read_to_string(path).unwrap())
+                        .unwrap();
 
                 for config in [data.item1, data.item2, data.item3, data.item4] {
                     if config.speed_type == speed_type && config.range_type == range_type {
@@ -261,10 +260,9 @@ impl DroneConfig {
                 panic!("No matching non-linear config")
             }
             cli::EnergyModel::Endurance => {
-                let data = serde_json::from_str::<_EnduranceFileJSON>(include_str!(
-                    "../problems/config_parameter/drone_endurance_config.json"
-                ))
-                .unwrap();
+                let data =
+                    serde_json::from_str::<_EnduranceFileJSON>(&fs::read_to_string(path).unwrap())
+                        .unwrap();
 
                 for config in [data.item1, data.item2, data.item3, data.item4] {
                     if config.speed_type == speed_type && config.range_type == range_type {
@@ -400,7 +398,9 @@ pub struct Config {
     pub y: Vec<f64>,
     pub demands: Vec<f64>,
     pub dronable: Vec<bool>,
-    pub distances: Vec<Vec<f64>>,
+
+    pub truck_distances: Vec<Vec<f64>>,
+    pub drone_distances: Vec<Vec<f64>>,
 
     pub truck: TruckConfig,
     pub drone: DroneConfig,
@@ -416,6 +416,8 @@ pub struct Config {
     pub reset_after_factor: f64,
     pub max_elite_size: usize,
     pub penalty_exponent: f64,
+    pub single_truck_route: bool,
+    pub single_drone_route: bool,
     pub verbose: bool,
     pub outputs: String,
     pub disable_logging: bool,
@@ -432,10 +434,14 @@ pub static CONFIG: LazyLock<Config> = LazyLock::new(|| {
         }
         cli::Commands::Run {
             problem,
+            truck_cfg,
+            drone_cfg,
             config,
             tabu_size_factor,
             speed_type,
             range_type,
+            truck_distance,
+            drone_distance,
             trucks_count,
             drones_count,
             waiting_time_limit,
@@ -444,17 +450,21 @@ pub static CONFIG: LazyLock<Config> = LazyLock::new(|| {
             reset_after_factor,
             max_elite_size,
             penalty_exponent,
+            single_truck_route,
+            single_drone_route,
             verbose,
             outputs,
             disable_logging,
             extra,
         } => {
-            let trucks_count_regex = Regex::new(r"number_truck (\d+)").unwrap();
-            let drones_count_regex = Regex::new(r"number_drone (\d+)").unwrap();
-            let customers_regex = RegexBuilder::new(r"^(-?[\d\.]+)\s+(-?[\d\.]+)\s+([\d\.]+)$")
-                .multi_line(true)
-                .build()
-                .unwrap();
+            let trucks_count_regex = Regex::new(r"trucks_count (\d+)").unwrap();
+            let drones_count_regex = Regex::new(r"drones_count (\d+)").unwrap();
+            let depot_regex = Regex::new(r"depot (-?[\d\.]+)\s+(-?[\d\.]+)").unwrap();
+            let customers_regex =
+                RegexBuilder::new(r"^\s*(-?[\d\.]+)\s+(-?[\d\.]+)\s+(0|1)\s+([\d\.]+)\s*$")
+                    .multi_line(true)
+                    .build()
+                    .unwrap();
 
             let data = fs::read_to_string(&problem).unwrap();
 
@@ -475,33 +485,37 @@ pub static CONFIG: LazyLock<Config> = LazyLock::new(|| {
                 })
                 .expect("Missing drones count");
 
+            let depot = depot_regex
+                .captures(&data)
+                .and_then(|caps| {
+                    let x = caps.get(1)?.as_str().parse::<f64>().ok()?;
+                    let y = caps.get(2)?.as_str().parse::<f64>().ok()?;
+                    Some((x, y))
+                })
+                .expect("Missing depot coordinates");
+
             let mut customers_count = 0;
-            let mut x = vec![0.0];
-            let mut y = vec![0.0];
+            let mut x = vec![depot.0];
+            let mut y = vec![depot.1];
             let mut demands = vec![0.0];
             let mut dronable = vec![true];
             for c in customers_regex.captures_iter(&data) {
                 customers_count += 1;
 
-                let (_, [_x, _y, _demand]) = c.extract::<3>();
-                x.push(1609.34 * _x.parse::<f64>().unwrap());
-                y.push(1609.34 * _y.parse::<f64>().unwrap());
-                demands.push(0.453592 * _demand.parse::<f64>().unwrap());
-                dronable.push(true);
+                let (_, [_x, _y, _dronable, _demand]) = c.extract::<4>();
+                x.push(_x.parse::<f64>().unwrap());
+                y.push(_y.parse::<f64>().unwrap());
+                dronable.push(matches!(_dronable, "1"));
+                demands.push(_demand.parse::<f64>().unwrap());
             }
 
-            let mut distances = vec![vec![0.0; customers_count + 1]; customers_count + 1];
-            for i in 0..customers_count + 1 {
-                for j in 0..customers_count + 1 {
-                    distances[i][j] = ((x[i] - x[j]).powi(2) + (y[i] - y[j]).powi(2)).sqrt();
-                }
-            }
+            let truck_distances = truck_distance.matrix(&x, &y);
+            let drone_distances = drone_distance.matrix(&x, &y);
 
-            let truck = serde_json::from_str::<TruckConfig>(include_str!(
-                "../problems/config_parameter/truck_config.json"
-            ))
-            .unwrap();
-            let drone = DroneConfig::new(config, speed_type, range_type);
+            let truck =
+                serde_json::from_str::<TruckConfig>(&fs::read_to_string(truck_cfg).unwrap())
+                    .unwrap();
+            let drone = DroneConfig::new(&drone_cfg, config, speed_type, range_type);
 
             for i in 1..customers_count + 1 {
                 dronable[i] = dronable[i] && demands[i] <= drone.capacity();
@@ -515,7 +529,8 @@ pub static CONFIG: LazyLock<Config> = LazyLock::new(|| {
                 y,
                 demands,
                 dronable,
-                distances,
+                truck_distances,
+                drone_distances,
                 truck,
                 drone,
                 problem,
@@ -529,6 +544,8 @@ pub static CONFIG: LazyLock<Config> = LazyLock::new(|| {
                 reset_after_factor,
                 max_elite_size,
                 penalty_exponent,
+                single_truck_route,
+                single_drone_route,
                 verbose,
                 outputs,
                 disable_logging,

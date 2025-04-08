@@ -1,6 +1,7 @@
 use std::fmt;
 
 use clap::{Parser, Subcommand, ValueEnum};
+use num_traits::Float;
 use serde::{Deserialize, Serialize};
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, ValueEnum, Deserialize, Serialize)]
@@ -75,6 +76,51 @@ impl fmt::Display for Strategy {
     }
 }
 
+#[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, ValueEnum, Deserialize, Serialize)]
+pub enum DistanceType {
+    #[serde(rename = "manhattan")]
+    Manhattan,
+    #[serde(rename = "euclidean")]
+    Euclidean,
+}
+
+impl fmt::Display for DistanceType {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "{}",
+            match self {
+                Self::Manhattan => "manhattan",
+                Self::Euclidean => "euclidean",
+            }
+        )
+    }
+}
+
+impl DistanceType {
+    pub fn matrix<T>(&self, x: &[T], y: &[T]) -> Vec<Vec<T>>
+    where
+        T: Float,
+    {
+        let n = x.len();
+        assert_eq!(n, y.len());
+
+        let mut matrix = vec![vec![T::zero(); n]; n];
+        for i in 0..n {
+            for j in 0..n {
+                let dx = x[i] - x[j];
+                let dy = y[i] - y[j];
+                matrix[i][j] = match self {
+                    DistanceType::Manhattan => dx.abs() + dy.abs(),
+                    DistanceType::Euclidean => (dx * dx + dy * dy).sqrt(),
+                };
+            }
+        }
+
+        matrix
+    }
+}
+
 #[derive(Debug, Parser)]
 #[command(
     long_about = "The min-timespan parallel technician-and-drone scheduling in door-to-door sampling service system",
@@ -102,12 +148,20 @@ pub enum Commands {
         /// Path to the coordinate file
         problem: String,
 
+        /// Path to truck config file
+        #[arg(long, default_value_t = String::from("problems/config_parameter/truck_config.json"))]
+        truck_cfg: String,
+
+        /// Path to drone config file
+        #[arg(long, default_value_t = String::from("problems/config_parameter/drone_endurance_config.json"))]
+        drone_cfg: String,
+
         /// The energy consumption model to use.
         #[arg(short, long, default_value_t = EnergyModel::Endurance)]
         config: EnergyModel,
 
         /// Tabu size of each neighborhood, final value = a1 * base
-        #[arg(long, default_value_t = 1.0)]
+        #[arg(long, default_value_t = 0.5)]
         tabu_size_factor: f64,
 
         /// Speed type of drones.
@@ -117,6 +171,14 @@ pub enum Commands {
         /// Range type of drones.
         #[arg(long, default_value_t = ConfigType::High)]
         range_type: ConfigType,
+
+        /// Distance type to use for trucks.
+        #[arg(long, default_value_t = DistanceType::Euclidean)]
+        truck_distance: DistanceType,
+
+        /// Distance type to use for drones.
+        #[arg(long, default_value_t = DistanceType::Euclidean)]
+        drone_distance: DistanceType,
 
         /// The number of trucks to override. Otherwise, use the default value.
         #[arg(long)]
@@ -151,6 +213,14 @@ pub enum Commands {
         /// Cost(S) = [working time] * (1 + [weighted penalty values]).powf(E)
         #[arg(long, default_value_t = 0.4)]
         penalty_exponent: f64,
+
+        /// Allow one route per truck only (this route can still serve multiple customers)
+        #[arg(long)]
+        single_truck_route: bool,
+
+        /// Allow one customer per drone route only (each drone can still perform multiple routes)
+        #[arg(long)]
+        single_drone_route: bool,
 
         /// The verbose mode
         #[arg(short, long)]

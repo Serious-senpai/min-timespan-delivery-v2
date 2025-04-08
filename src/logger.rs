@@ -81,6 +81,8 @@ impl Logger<'_> {
                 "Fixed time violation",
                 "Truck routes",
                 "Drone routes",
+                "Truck routes count",
+                "Drone routes count",
                 "Neighborhood",
                 "Tabu list",
             ]
@@ -122,7 +124,7 @@ impl Logger<'_> {
         if let Some(ref mut writer) = self._writer {
             writeln!(
                 writer,
-                "{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{}",
+                "{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{}",
                 self._iteration,
                 solution.cost(),
                 solution.working_time,
@@ -137,6 +139,8 @@ impl Logger<'_> {
                 solution.fixed_time_violation,
                 _wrap(&format!("{:?}", _expand_routes(&solution.truck_routes))),
                 _wrap(&format!("{:?}", _expand_routes(&solution.drone_routes))),
+                solution.truck_routes.iter().map(|r| r.len()).sum::<usize>(),
+                solution.drone_routes.iter().map(|r| r.len()).sum::<usize>(),
                 _wrap(&neighbor.to_string()),
                 _wrap(&format!("{:?}", tabu_list)),
             )?;

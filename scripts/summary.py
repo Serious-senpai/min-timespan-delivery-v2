@@ -74,10 +74,10 @@ if __name__ == "__main__":
             "Faster [%]",
             "Weight per truck route [kg]",
             "Customers per truck route",
-            "Truck route count",
+            "Truck routes count",
             "Weight per drone route [kg]",
             "Customers per drone route",
-            "Drone route count",
+            "Drone routes count",
             "Strategy",
         ]
         csv.write(",".join(headers))
@@ -152,6 +152,7 @@ if __name__ == "__main__":
                     milp_result = milp / f"result_{problem}.json"
                     milp_data: Any = defaultdict(str)
                     if milp_result.is_file():
+                        milp_data["Solve_Time"] = 36000
                         with milp_result.open("r", encoding="utf-8") as reader:
                             milp_data.update(json.load(reader))
 
@@ -169,7 +170,7 @@ if __name__ == "__main__":
 
                     segments = [
                         wrap(problem),
-                        "",
+                        str(truck_customers + drone_customers),
                         str(config["trucks_count"]),
                         str(config["drones_count"]),
                         str(data["iterations"]),
@@ -219,7 +220,7 @@ if __name__ == "__main__":
                         query,
                         (
                             problem,
-                            int(problem.split(".")[0]),
+                            truck_customers + drone_customers,
                             config["trucks_count"],
                             config["drones_count"],
                             data["iterations"],

@@ -1,5 +1,6 @@
 use std::fmt::Display;
 
+use crate::config::CONFIG;
 use crate::routes::{DroneRoute, Route, TruckRoute};
 use crate::solutions::Solution;
 
@@ -104,15 +105,16 @@ impl Neighborhood {
             vec.swap(index, l);
         }
 
-        macro_rules! search_route {
-            ($original_routes_i:expr, $cloned_routes_i:expr) => {
+        macro_rules! iterate_route_i {
+            ($original_routes_i:expr, $cloned_routes_i:expr, $one_customer_per_route_i:expr) => {
                 let routes_i = &$original_routes_i[vehicle_i];
                 for (route_idx_i, route_i) in routes_i.iter().enumerate() {
-                    macro_rules! search_other_routes {
-                        ($original_routes_j:expr, $cloned_routes_j:expr) => {
+                    macro_rules! iterate_route_j {
+                        ($original_routes_j:expr, $cloned_routes_j:expr, $one_customer_per_route_j:expr) => {
                             for (vehicle_j, routes_j) in $original_routes_j.iter().enumerate() {
                                 for (route_idx_j, route_j) in routes_j.iter().enumerate() {
-                                    if std::ptr::addr_eq(route_i, route_j) {
+                                    // Dirty trick to compare 2 routes (because each customer can only be served exactly once)
+                                    if route_i.data().customers[1] == route_j.data().customers[1] {
                                         continue;
                                     }
 
@@ -129,6 +131,17 @@ impl Neighborhood {
 
                                     for (new_route_i, new_route_j, tabu) in neighbors
                                     {
+                                        if let Some(ref new_route_i) = new_route_i {
+                                            if $one_customer_per_route_i && new_route_i.data().customers.len() != 3 {
+                                                continue;
+                                            }
+                                        }
+                                        if let Some(ref new_route_j) = new_route_j {
+                                            if $one_customer_per_route_j && new_route_j.data().customers.len() != 3 {
+                                                continue;
+                                            }
+                                        }
+
                                         // Temporary assign new routes.
                                         // Make use of `swap_remove` due to its O(1) complexity and the route order
                                         // of each vehicle is not important.
@@ -139,7 +152,7 @@ impl Neighborhood {
                                             }
                                             None => {
                                                 $cloned_routes_i[vehicle_i].swap_remove(route_idx_i);
-                                                if std::ptr::addr_eq(routes_i, routes_j) && route_idx_j == routes_j.len() - 1 {
+                                                if std::ptr::addr_eq(routes_i, routes_j) /* same vehicle */ && route_idx_j == routes_j.len() - 1 {
                                                     route_idx_j_after_swap_remove = route_idx_i;
                                                 }
                                             }
@@ -200,29 +213,42 @@ impl Neighborhood {
                         };
                     }
 
-                    search_other_routes!(solution.truck_routes, truck_cloned);
-                    search_other_routes!(solution.drone_routes, drone_cloned);
+                    iterate_route_j!(solution.truck_routes, truck_cloned, false);
+                    iterate_route_j!(solution.drone_routes, drone_cloned, CONFIG.single_drone_route);
                 }
             };
         }
 
         if is_truck {
-            search_route!(solution.truck_routes, truck_cloned);
+            iterate_route_i!(solution.truck_routes, truck_cloned, false);
         } else {
-            search_route!(solution.drone_routes, drone_cloned);
+            iterate_route_i!(
+                solution.drone_routes,
+                drone_cloned,
+                CONFIG.single_drone_route
+            );
         }
 
-        macro_rules! search_route_append {
+        macro_rules! iterate_route_i_extract {
             ($original_routes_i:expr, $cloned_routes_i:expr) => {
                 let routes_i = &$original_routes_i[vehicle_i];
                 for (route_idx_i, route_i) in routes_i.iter().enumerate() {
-                    macro_rules! search_other_routes_append {
-                        ($original_routes_j:expr, $cloned_routes_j:expr, $type_j:tt) => {
+                    macro_rules! iterate_route_j_append {
+                        ($original_routes_j:expr, $cloned_routes_j:expr, $type_j:tt, $one_route_per_vehicle:expr, $one_customer_per_route:expr) => {
                             for (new_route_i, new_route_j, tabu) in
                                 route_i.inter_route_extract::<$type_j>(self)
                             {
+                                if $one_customer_per_route && new_route_j.data().customers.len() != 3 {
+                                    continue;
+                                }
+
                                 $cloned_routes_i[vehicle_i][route_idx_i] = new_route_i;
                                 for vehicle_j in 0..$original_routes_j.len() {
+                                    if $one_route_per_vehicle && !$cloned_routes_j[vehicle_j].is_empty()
+                                    {
+                                        continue;
+                                    }
+
                                     $cloned_routes_j[vehicle_j].push(new_route_j.clone());
 
                                     let s = Solution::new(truck_cloned, drone_cloned);
@@ -247,8 +273,8 @@ impl Neighborhood {
                         };
                     }
 
-                    search_other_routes_append!(solution.truck_routes, truck_cloned, TruckRoute);
-                    search_other_routes_append!(solution.drone_routes, drone_cloned, DroneRoute);
+                    iterate_route_j_append!(solution.truck_routes, truck_cloned, TruckRoute, CONFIG.single_truck_route, false);
+                    iterate_route_j_append!(solution.drone_routes, drone_cloned, DroneRoute, false, CONFIG.single_drone_route);
 
                     $cloned_routes_i[vehicle_i][route_idx_i] = route_i.clone();
                 }
@@ -256,9 +282,9 @@ impl Neighborhood {
         }
 
         if is_truck {
-            search_route_append!(solution.truck_routes, truck_cloned);
+            iterate_route_i_extract!(solution.truck_routes, truck_cloned);
         } else {
-            search_route_append!(solution.drone_routes, drone_cloned);
+            iterate_route_i_extract!(solution.drone_routes, drone_cloned);
         }
 
         result
@@ -324,14 +350,25 @@ impl Neighborhood {
         tabu_list: &mut Vec<Vec<usize>>,
         tabu_size: usize,
         aspiration_cost: f64,
-    ) -> Solution {
+    ) -> Option<Solution> {
         let intra = self.intra_route(solution, tabu_list, aspiration_cost);
         let inter = self.inter_route(solution, tabu_list, aspiration_cost);
-        let (result, mut tabu) = if intra.0.cost() < inter.0.cost() {
+
+        #[allow(clippy::if_same_then_else)]
+        let (result, mut tabu) = if intra.1.is_empty() {
+            inter // Intra-route neighborhood is empty
+        } else if inter.1.is_empty() {
+            intra // Inter-route neighborhood is empty
+        } else if intra.0.cost() < inter.0.cost() {
             intra
         } else {
             inter
         };
+
+        if tabu.is_empty() {
+            // Both neighborhoods are empty
+            return None;
+        }
 
         tabu.sort();
         match tabu_list.iter().position(|x| x == &tabu) {
@@ -346,6 +383,6 @@ impl Neighborhood {
             }
         }
 
-        result
+        Some(result)
     }
 }

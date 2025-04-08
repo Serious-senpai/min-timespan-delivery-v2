@@ -231,10 +231,11 @@ impl Solution {
         while improved {
             improved = false;
             for neighborhood in NEIGHBORHOODS.iter() {
-                let best = neighborhood.search(&result, &mut vec![], 0, result.cost());
-                if best.cost() < result.cost() && best.feasible {
-                    result = Rc::new(best);
-                    improved = true;
+                if let Some(best) = neighborhood.search(&result, &mut vec![], 0, result.cost()) {
+                    if best.cost() < result.cost() && best.feasible {
+                        result = Rc::new(best);
+                        improved = true;
+                    }
                 }
             }
         }
@@ -243,12 +244,15 @@ impl Solution {
     }
 
     pub fn initialize() -> Solution {
-        fn _sort_cluster_with_starting_point(cluster: &mut [usize], mut start: usize) {
+        fn _sort_cluster_with_starting_point(
+            cluster: &mut [usize],
+            mut start: usize,
+            distance: &[Vec<f64>],
+        ) {
             if cluster.is_empty() {
                 return;
             }
 
-            let distance = &CONFIG.distances;
             for i in 0..cluster.len() {
                 let mut min_distance = f64::INFINITY;
                 let mut min_idx = 0;
@@ -375,7 +379,9 @@ impl Solution {
                 }
             }
 
-            cluster.sort_by(|&i, &j| CONFIG.distances[0][i].total_cmp(&CONFIG.distances[0][j]));
+            cluster.sort_by(|&i, &j| {
+                CONFIG.drone_distances[0][i].total_cmp(&CONFIG.drone_distances[0][j])
+            });
             for &customer in cluster.iter() {
                 if dronable[customer] {
                     queue.push(_State {
@@ -408,16 +414,18 @@ impl Solution {
             let mut min_distance = f64::INFINITY;
             let mut min_idx = 0;
             for &customer in &clusters[clusters_mapping[parent]] {
-                if truckable[customer] && CONFIG.distances[parent][customer] < min_distance {
-                    min_distance = CONFIG.distances[parent][customer];
+                if truckable[customer] && CONFIG.truck_distances[parent][customer] < min_distance {
+                    min_distance = CONFIG.truck_distances[parent][customer];
                     min_idx = customer;
                 }
             }
 
             if min_idx == 0 {
                 for &customer in global.iter() {
-                    if truckable[customer] && CONFIG.distances[parent][customer] < min_distance {
-                        min_distance = CONFIG.distances[parent][customer];
+                    if truckable[customer]
+                        && CONFIG.truck_distances[parent][customer] < min_distance
+                    {
+                        min_distance = CONFIG.truck_distances[parent][customer];
                         min_idx = customer;
                     }
                 }
@@ -450,16 +458,17 @@ impl Solution {
             let mut min_distance = f64::INFINITY;
             let mut min_idx = 0;
             for &customer in &clusters[clusters_mapping[parent]] {
-                if dronable[customer] && CONFIG.distances[parent][customer] < min_distance {
-                    min_distance = CONFIG.distances[parent][customer];
+                if dronable[customer] && CONFIG.drone_distances[parent][customer] < min_distance {
+                    min_distance = CONFIG.drone_distances[parent][customer];
                     min_idx = customer;
                 }
             }
 
             if min_idx == 0 {
                 for &customer in global.iter() {
-                    if dronable[customer] && CONFIG.distances[parent][customer] < min_distance {
-                        min_distance = CONFIG.distances[parent][customer];
+                    if dronable[customer] && CONFIG.drone_distances[parent][customer] < min_distance
+                    {
+                        min_distance = CONFIG.drone_distances[parent][customer];
                         min_idx = customer;
                     }
                 }
@@ -478,7 +487,7 @@ impl Solution {
         }
 
         while !global.is_empty() {
-            let packed = queue.pop().unwrap();
+            let packed = queue.pop().unwrap_or_else(|| panic!("A trivial solution cannot be constructed during initialization.\nThe following customers cannot be served: {:?}", global));
 
             let cluster = clusters_mapping[packed.index];
             match clusters[cluster].iter().position(|&x| x == packed.index) {
@@ -522,7 +531,11 @@ impl Solution {
                                 &global,
                                 &truck_routes,
                                 &mut drone_routes,
-                                packed.index,
+                                if CONFIG.single_drone_route {
+                                    0
+                                } else {
+                                    packed.index
+                                },
                                 packed.vehicle,
                             );
                         }
@@ -534,17 +547,19 @@ impl Solution {
                             *route = route.pop();
                         }
 
-                        truck_next(
-                            &truckable,
-                            &clusters,
-                            &clusters_mapping,
-                            &mut queue,
-                            &global,
-                            &mut truck_routes,
-                            &drone_routes,
-                            0,
-                            packed.vehicle,
-                        );
+                        if !CONFIG.single_truck_route {
+                            truck_next(
+                                &truckable,
+                                &clusters,
+                                &clusters_mapping,
+                                &mut queue,
+                                &global,
+                                &mut truck_routes,
+                                &drone_routes,
+                                0,
+                                packed.vehicle,
+                            );
+                        }
                     } else {
                         if packed.parent == 0 {
                             drone_routes[packed.vehicle].pop();
@@ -588,7 +603,11 @@ impl Solution {
                             &global,
                             &truck_routes,
                             &mut drone_routes,
-                            packed.parent,
+                            if CONFIG.single_drone_route {
+                                0
+                            } else {
+                                packed.parent
+                            },
                             packed.vehicle,
                         );
                     }
@@ -636,7 +655,10 @@ impl Solution {
         }
         let base_hyperparameter = CONFIG.customers_count as f64 / total_vehicle as f64;
         let tabu_size = (CONFIG.tabu_size_factor * base_hyperparameter) as usize;
-        let reset_after = (CONFIG.reset_after_factor * base_hyperparameter) as usize;
+        let reset_after = std::cmp::min(
+            (CONFIG.reset_after_factor * base_hyperparameter) as usize,
+            500,
+        );
 
         let mut result = Rc::new(root);
         let mut current = result.clone();
@@ -658,37 +680,44 @@ impl Solution {
         for iteration in iteration_range {
             if CONFIG.verbose {
                 print!(
-                    "Iteration #{} ({:.2}/{:.2})     \r",
+                    "Iteration #{} (reset in {}): {:.2}/{:.2}, elite set {}/{}     \r",
                     iteration,
+                    reset_after.saturating_sub((iteration - last_improved) % reset_after),
                     current.cost(),
                     result.cost(),
+                    elite_set.len(),
+                    CONFIG.max_elite_size
                 );
             }
 
             let neighborhood = NEIGHBORHOODS[neighborhood_idx];
             let tabu_list = &mut tabu_lists[neighborhood_idx];
-            let neighbor =
-                Rc::new(neighborhood.search(&current, tabu_list, tabu_size, result.cost()));
-            if neighbor.cost() < result.cost() && neighbor.feasible {
-                result = neighbor.clone();
-                last_improved = iteration;
 
-                if CONFIG.max_elite_size > 0 {
-                    if elite_set.len() == CONFIG.max_elite_size {
-                        let (idx, _) = elite_set
-                            .iter()
-                            .enumerate()
-                            .min_by_key(|s| s.1.hamming_distance(&result))
-                            .unwrap();
-                        elite_set.remove(idx);
+            let old_current = current.clone();
+            if let Some(neighbor) =
+                neighborhood.search(&current, tabu_list, tabu_size, result.cost())
+            {
+                let neighbor = Rc::new(neighbor);
+                if neighbor.cost() < result.cost() && neighbor.feasible {
+                    result = neighbor.clone();
+                    last_improved = iteration;
+
+                    if CONFIG.max_elite_size > 0 {
+                        if elite_set.len() == CONFIG.max_elite_size {
+                            let (idx, _) = elite_set
+                                .iter()
+                                .enumerate()
+                                .min_by_key(|s| s.1.hamming_distance(&result))
+                                .unwrap();
+                            elite_set.remove(idx);
+                        }
+
+                        elite_set.push(neighbor.clone());
                     }
-
-                    elite_set.push(neighbor.clone());
                 }
-            }
 
-            let old_current = current;
-            current = neighbor;
+                current = neighbor;
+            }
 
             if iteration != last_improved && (iteration - last_improved) % reset_after == 0 {
                 if elite_set.is_empty() {
