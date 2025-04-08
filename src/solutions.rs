@@ -231,10 +231,11 @@ impl Solution {
         while improved {
             improved = false;
             for neighborhood in NEIGHBORHOODS.iter() {
-                let best = neighborhood.search(&result, &mut vec![], 0, result.cost());
-                if best.cost() < result.cost() && best.feasible {
-                    result = Rc::new(best);
-                    improved = true;
+                if let Some(best) = neighborhood.search(&result, &mut vec![], 0, result.cost()) {
+                    if best.cost() < result.cost() && best.feasible {
+                        result = Rc::new(best);
+                        improved = true;
+                    }
                 }
             }
         }
@@ -654,7 +655,10 @@ impl Solution {
         }
         let base_hyperparameter = CONFIG.customers_count as f64 / total_vehicle as f64;
         let tabu_size = (CONFIG.tabu_size_factor * base_hyperparameter) as usize;
-        let reset_after = (CONFIG.reset_after_factor * base_hyperparameter) as usize;
+        let reset_after = std::cmp::min(
+            (CONFIG.reset_after_factor * base_hyperparameter) as usize,
+            500,
+        );
 
         let mut result = Rc::new(root);
         let mut current = result.clone();
@@ -676,37 +680,44 @@ impl Solution {
         for iteration in iteration_range {
             if CONFIG.verbose {
                 print!(
-                    "Iteration #{} ({:.2}/{:.2})     \r",
+                    "Iteration #{} (reset in {}): {:.2}/{:.2}, elite set {}/{}     \r",
                     iteration,
+                    reset_after.saturating_sub((iteration - last_improved) % reset_after),
                     current.cost(),
                     result.cost(),
+                    elite_set.len(),
+                    CONFIG.max_elite_size
                 );
             }
 
             let neighborhood = NEIGHBORHOODS[neighborhood_idx];
             let tabu_list = &mut tabu_lists[neighborhood_idx];
-            let neighbor =
-                Rc::new(neighborhood.search(&current, tabu_list, tabu_size, result.cost()));
-            if neighbor.cost() < result.cost() && neighbor.feasible {
-                result = neighbor.clone();
-                last_improved = iteration;
 
-                if CONFIG.max_elite_size > 0 {
-                    if elite_set.len() == CONFIG.max_elite_size {
-                        let (idx, _) = elite_set
-                            .iter()
-                            .enumerate()
-                            .min_by_key(|s| s.1.hamming_distance(&result))
-                            .unwrap();
-                        elite_set.remove(idx);
+            let old_current = current.clone();
+            if let Some(neighbor) =
+                neighborhood.search(&current, tabu_list, tabu_size, result.cost())
+            {
+                let neighbor = Rc::new(neighbor);
+                if neighbor.cost() < result.cost() && neighbor.feasible {
+                    result = neighbor.clone();
+                    last_improved = iteration;
+
+                    if CONFIG.max_elite_size > 0 {
+                        if elite_set.len() == CONFIG.max_elite_size {
+                            let (idx, _) = elite_set
+                                .iter()
+                                .enumerate()
+                                .min_by_key(|s| s.1.hamming_distance(&result))
+                                .unwrap();
+                            elite_set.remove(idx);
+                        }
+
+                        elite_set.push(neighbor.clone());
                     }
-
-                    elite_set.push(neighbor.clone());
                 }
-            }
 
-            let old_current = current;
-            current = neighbor;
+                current = neighbor;
+            }
 
             if iteration != last_improved && (iteration - last_improved) % reset_after == 0 {
                 if elite_set.is_empty() {
