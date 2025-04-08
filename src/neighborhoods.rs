@@ -152,7 +152,7 @@ impl Neighborhood {
                                             }
                                             None => {
                                                 $cloned_routes_i[vehicle_i].swap_remove(route_idx_i);
-                                                if route_i.data().customers[1] == route_j.data().customers[1] && route_idx_j == routes_j.len() - 1 {
+                                                if std::ptr::addr_eq(routes_i, routes_j) /* same vehicle */ && route_idx_j == routes_j.len() - 1 {
                                                     route_idx_j_after_swap_remove = route_idx_i;
                                                 }
                                             }
