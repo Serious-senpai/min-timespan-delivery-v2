@@ -655,10 +655,14 @@ impl Solution {
         }
         let base_hyperparameter = CONFIG.customers_count as f64 / total_vehicle as f64;
         let tabu_size = (CONFIG.tabu_size_factor * base_hyperparameter) as usize;
-        let reset_after = std::cmp::min(
-            (CONFIG.reset_after_factor * base_hyperparameter) as usize,
-            500,
-        );
+        let reset_after = if CONFIG.fix_iteration.is_some() {
+            usize::MAX
+        } else {
+            std::cmp::min(
+                (CONFIG.reset_after_factor * base_hyperparameter) as usize,
+                500,
+            )
+        };
 
         let mut result = Rc::new(root);
         let mut current = result.clone();
@@ -670,7 +674,7 @@ impl Solution {
         let mut last_improved = 0;
 
         let iteration_range = match CONFIG.fix_iteration {
-            Some(iteration) => 1..iteration,
+            Some(iteration) => 1..iteration + 1,
             None => 1..usize::MAX,
         };
         let mut rng = rand::rng();
