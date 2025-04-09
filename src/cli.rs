@@ -161,7 +161,7 @@ pub enum Commands {
         config: EnergyModel,
 
         /// Tabu size of each neighborhood, final value = a1 * base
-        #[arg(long, default_value_t = 0.5)]
+        #[arg(long, default_value_t = 1)]
         tabu_size_factor: f64,
 
         /// Speed type of drones.
@@ -211,7 +211,7 @@ pub enum Commands {
         /// Exponent value E attached to the cost function:
         ///
         /// Cost(S) = [working time] * (1 + [weighted penalty values]).powf(E)
-        #[arg(long, default_value_t = 0.4)]
+        #[arg(long, default_value_t = 0.6)]
         penalty_exponent: f64,
 
         /// Allow one route per truck only (this route can still serve multiple customers)
