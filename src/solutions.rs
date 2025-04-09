@@ -656,7 +656,7 @@ impl Solution {
         let base_hyperparameter = CONFIG.customers_count as f64 / total_vehicle as f64;
         let tabu_size = (CONFIG.tabu_size_factor * base_hyperparameter) as usize;
         let reset_after = if CONFIG.fix_iteration.is_some() {
-            usize::MAX
+            i64::MAX as usize // usize::MAX cannot be stored in SQLite
         } else {
             std::cmp::min(
                 (CONFIG.reset_after_factor * base_hyperparameter) as usize,
