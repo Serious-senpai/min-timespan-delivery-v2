@@ -132,3 +132,10 @@ jobs:
           path: |
             outputs/summary.csv
             outputs/summary.db
+
+      - name: Upload all output files
+        uses: actions/upload-artifact@v4
+        if: ${{ always() }}
+        with:
+          name: summary
+          path: outputs/*

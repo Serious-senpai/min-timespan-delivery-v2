@@ -3,7 +3,6 @@ from __future__ import annotations
 import argparse
 import json
 import tempfile
-from math import sqrt
 from pathlib import Path
 from typing import List, Literal, TYPE_CHECKING
 
@@ -15,10 +14,6 @@ class Namespace(argparse.Namespace):
         sp: Literal[1, 2, 3, 4, 5]
         dc: Literal[1, 2, 3, 4, 5]
         dp: Literal[1, 2]
-
-
-def euc(dx: float, dy: float) -> float:
-    return sqrt(dx ** 2 + dy ** 2)
 
 
 ROOT = Path(__file__).parent.parent.resolve()

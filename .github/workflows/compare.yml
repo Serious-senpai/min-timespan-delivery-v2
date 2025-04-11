@@ -38,8 +38,8 @@ jobs:
           name: executable
           path: target/release/min-timespan-delivery
 
-  solve:
-    name: Run algorithm
+  solve-dell-amico-2020:
+    name: Solve Dell'Amico 2020
     runs-on: ubuntu-latest
     needs: build
     strategy:
@@ -99,7 +99,7 @@ jobs:
             fi
           }
 
-          arguments=$(python scripts/saleu.py ${{ matrix.problem }} --el ${{ matrix.arguments.el }} --sp ${{ matrix.arguments.sp }} --dc ${{ matrix.arguments.dc }} --dp ${{ matrix.arguments.dp }})
+          arguments=$(python scripts/dell-amico-2020.py ${{ matrix.problem }} --el ${{ matrix.arguments.el }} --sp ${{ matrix.arguments.sp }} --dc ${{ matrix.arguments.dc }} --dp ${{ matrix.arguments.dp }})
           for i in $(seq $begin $end)
           do
             echo "RUN #$i"
@@ -112,14 +112,78 @@ jobs:
         uses: actions/upload-artifact@v4
         if: ${{ always() }}
         with:
-          name: output-${{ matrix.problem }}-${{ matrix.arguments.el }}-${{ matrix.arguments.sp }}-${{ matrix.arguments.dc }}-${{ matrix.arguments.dp }}-${{ matrix.steps }}
+          name: output-${{ matrix.problem }}-${{ matrix.arguments.el }}-${{ matrix.arguments.sp }}-${{ matrix.arguments.dc }}-${{ matrix.arguments.dp }}-${{ matrix.steps }}-dell-amico-2020
+          path: outputs/*
+
+  solve-saleu-2022:
+    name: Solve Saleu 2022
+    runs-on: ubuntu-latest
+    needs: build
+    strategy:
+      fail-fast: false
+      matrix:
+        problem: [CMT1, CMT2, CMT3, CMT4, CMT5]
+        steps: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Download executable
+        uses: actions/download-artifact@v4
+        with:
+          name: executable
+          path: .
+
+      - name: Update permission
+        run: chmod +x min-timespan-delivery
+
+      - name: Run algorithm
+        run: |
+          exitcode=0
+          set +e
+          let begin=${{ matrix.steps }}+1
+          let end=$begin+0
+
+          execute() {
+            command=$1
+            echo "Running \"$command\""
+            $command
+
+            status=$?
+            if [ $status -ne 0 ]; then
+              echo "::error::\"$command\" exit with status $status"
+              exitcode=1
+            fi
+          }
+
+          arguments=$(python scripts/saleu-2022.py ${{ matrix.problem }})
+          for i in $(seq $begin $end)
+          do
+            echo "RUN #$i"
+            execute "./min-timespan-delivery $arguments --disable-logging --extra ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          done
+
+          exit $exitcode
+
+      - name: Upload results
+        uses: actions/upload-artifact@v4
+        if: ${{ always() }}
+        with:
+          name: output-${{ matrix.problem }}-${{ matrix.steps }}-saleu-2022
           path: outputs/*
 
   compare:
-    name: Compare results to other algorithms
+    name: Compare algorithms
     runs-on: ubuntu-latest
     if: ${{ always() }}
-    needs: solve
+    needs: [solve-dell-amico-2020, solve-saleu-2022]
+    strategy:
+      fail-fast: false
+      matrix:
+        id: [dell-amico-2020, saleu-2022]
 
     steps:
       - name: Checkout repository
@@ -129,7 +193,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           path: outputs/
-          pattern: output-*
+          pattern: output-*-${{ matrix.id }}
           merge-multiple: true
 
       - name: Setup Python
@@ -138,13 +202,20 @@ jobs:
           python-version: "3.12"
 
       - name: Summarize results
-        run: python scripts/compare.py
+        run: python scripts/${{ matrix.id }}-compare.py
 
       - name: Upload summary files
         uses: actions/upload-artifact@v4
         if: ${{ always() }}
         with:
-          name: summary-csv
+          name: summary-csv-${{ matrix.id }}
           path: |
             outputs/summary.csv
             outputs/summary.db
+
+      - name: Upload all output files
+        uses: actions/upload-artifact@v4
+        if: ${{ always() }}
+        with:
+          name: summary-${{ matrix.id }}
+          path: outputs/*
