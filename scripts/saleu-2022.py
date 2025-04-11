@@ -34,11 +34,8 @@ if __name__ == "__main__":
             _x, _y = map(float, match.groups())
             x.append(_x)
             y.append(_y)
-
-        for match in re.finditer(r"^\d+ (-?[\d\.]+)$", data, flags=re.MULTILINE):
-            _demand = float(match.group(1))
             dronable.append(True)
-            demands.append(_demand)
+            demands.append(0)
 
     # The depot is the first customer in the list
     depot = x.pop(0), y.pop(0)
