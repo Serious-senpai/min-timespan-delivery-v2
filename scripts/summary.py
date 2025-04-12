@@ -145,8 +145,15 @@ if __name__ == "__main__":
                     if not pattern.fullmatch(filename):
                         continue
 
-                    with open(dirpath / filename, "r", encoding="utf-8") as reader:
-                        data = json.load(reader)
+                    path = dirpath / filename
+                    print(path)
+
+                    content = path.read_text(encoding="utf-8")
+                    try:
+                        data = json.loads(content)
+                    except json.JSONDecodeError:
+                        print(f"Unable to decode JSON:\n--- BEGIN ---\n{content}\n--- END ---")
+                        raise
 
                     problem = data["problem"]
                     milp_result = milp / f"result_{problem}.json"
