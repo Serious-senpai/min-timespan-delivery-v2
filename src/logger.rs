@@ -9,7 +9,7 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use rand::distr::Alphanumeric;
 use rand::Rng;
 
-use crate::config::{Config, CONFIG};
+use crate::config::{SerializedConfig, CONFIG};
 use crate::errors::ExpectedValue;
 use crate::neighborhoods::Neighborhood;
 use crate::routes::Route;
@@ -22,7 +22,7 @@ struct RunJSON<'a> {
     reset_after: usize,
     iterations: usize,
     solution: &'a Solution,
-    config: &'a Config,
+    config: &'a SerializedConfig,
     last_improved: usize,
     elapsed: f64,
 }
@@ -157,6 +157,7 @@ impl Logger<'_> {
         last_improved: usize,
     ) -> Result<(), Box<dyn Error>> {
         let elapsed = SystemTime::now().duration_since(UNIX_EPOCH).unwrap() - self._time_offset;
+        let serialized_config = SerializedConfig::from(CONFIG.clone());
 
         let mut json = File::create(
             self._outputs
@@ -170,7 +171,7 @@ impl Logger<'_> {
                 reset_after,
                 iterations: self._iteration,
                 solution: result,
-                config: &CONFIG,
+                config: &serialized_config,
                 last_improved,
                 elapsed: elapsed.as_micros() as f64 / 1e6,
             })?
@@ -189,7 +190,7 @@ impl Logger<'_> {
                 .join(format!("{}-{}-config.json", self._problem, self._id)),
         )?;
         println!("Writing config to {:?}", json);
-        json.write_all(serde_json::to_string(&*CONFIG)?.as_bytes())?;
+        json.write_all(serde_json::to_string(&serialized_config)?.as_bytes())?;
 
         Ok(())
     }
