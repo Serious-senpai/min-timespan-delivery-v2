@@ -17,7 +17,7 @@ pub struct TruckConfig {
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
-pub struct _LinearJSON {
+pub struct LinearJSON {
     #[serde(rename = "takeoffSpeed [m/s]")]
     takeoff_speed: f64,
 
@@ -49,20 +49,20 @@ pub struct _LinearJSON {
 #[derive(Debug, Deserialize)]
 struct _LinearFileJSON {
     #[serde(rename = "1")]
-    item1: _LinearJSON,
+    item1: LinearJSON,
 
     #[serde(rename = "2")]
-    item2: _LinearJSON,
+    item2: LinearJSON,
 
     #[serde(rename = "3")]
-    item3: _LinearJSON,
+    item3: LinearJSON,
 
     #[serde(rename = "4")]
-    item4: _LinearJSON,
+    item4: LinearJSON,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
-pub struct _NonLinearJSON {
+pub struct NonLinearJSON {
     #[serde(rename = "takeoffSpeed [m/s]")]
     takeoff_speed: f64,
 
@@ -88,16 +88,16 @@ pub struct _NonLinearJSON {
 #[derive(Debug, Deserialize)]
 struct _NonLinearFileJSON {
     #[serde(rename = "1")]
-    item1: _NonLinearJSON,
+    item1: NonLinearJSON,
 
     #[serde(rename = "2")]
-    item2: _NonLinearJSON,
+    item2: NonLinearJSON,
 
     #[serde(rename = "3")]
-    item3: _NonLinearJSON,
+    item3: NonLinearJSON,
 
     #[serde(rename = "4")]
-    item4: _NonLinearJSON,
+    item4: NonLinearJSON,
 
     k1: f64,
 
@@ -118,7 +118,7 @@ struct _NonLinearFileJSON {
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
-pub struct _EnduranceJSON {
+pub struct EnduranceJSON {
     speed_type: cli::ConfigType,
     range_type: cli::ConfigType,
 
@@ -135,28 +135,28 @@ pub struct _EnduranceJSON {
 #[derive(Debug, Deserialize)]
 struct _EnduranceFileJSON {
     #[serde(rename = "1")]
-    item1: _EnduranceJSON,
+    item1: EnduranceJSON,
 
     #[serde(rename = "2")]
-    item2: _EnduranceJSON,
+    item2: EnduranceJSON,
 
     #[serde(rename = "3")]
-    item3: _EnduranceJSON,
+    item3: EnduranceJSON,
 
     #[serde(rename = "4")]
-    item4: _EnduranceJSON,
+    item4: EnduranceJSON,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(tag = "config")]
 pub enum DroneConfig {
     Linear {
-        _data: _LinearJSON,
+        _data: LinearJSON,
         _takeoff_time: f64,
         _landing_time: f64,
     },
     NonLinear {
-        _data: _NonLinearJSON,
+        _data: NonLinearJSON,
         _vert_k1: f64,
         _vert_k2: f64,
         _vert_c2: f64,
@@ -172,7 +172,7 @@ pub enum DroneConfig {
         _landing_time: f64,
     },
     Endurance {
-        _data: _EnduranceJSON,
+        _data: EnduranceJSON,
     },
 }
 
@@ -273,7 +273,7 @@ impl DroneConfig {
                 panic!("No matching endurance config")
             }
             cli::EnergyModel::Unlimited => Self::Endurance {
-                _data: _EnduranceJSON {
+                _data: EnduranceJSON {
                     speed_type: cli::ConfigType::High,
                     range_type: cli::ConfigType::High,
                     capacity: f64::INFINITY,
@@ -388,7 +388,43 @@ impl DroneConfig {
     }
 }
 
-#[derive(Clone, Debug, Deserialize, Serialize)]
+#[derive(Debug, Deserialize, Serialize)]
+pub struct SerializedConfig {
+    customers_count: usize,
+    trucks_count: usize,
+    drones_count: usize,
+
+    x: Vec<f64>,
+    y: Vec<f64>,
+    demands: Vec<f64>,
+    dronable: Vec<bool>,
+
+    truck_distance: cli::DistanceType,
+    drone_distance: cli::DistanceType,
+
+    truck: TruckConfig,
+    drone: DroneConfig,
+
+    problem: String,
+    config: cli::EnergyModel,
+    tabu_size_factor: f64,
+    speed_type: cli::ConfigType,
+    range_type: cli::ConfigType,
+    waiting_time_limit: f64,
+    strategy: cli::Strategy,
+    fix_iteration: Option<usize>,
+    reset_after_factor: f64,
+    max_elite_size: usize,
+    penalty_exponent: f64,
+    single_truck_route: bool,
+    single_drone_route: bool,
+    verbose: bool,
+    outputs: String,
+    disable_logging: bool,
+    extra: String,
+}
+
+#[derive(Clone, Debug)]
 pub struct Config {
     pub customers_count: usize,
     pub trucks_count: usize,
@@ -399,6 +435,8 @@ pub struct Config {
     pub demands: Vec<f64>,
     pub dronable: Vec<bool>,
 
+    pub truck_distance: cli::DistanceType,
+    pub drone_distance: cli::DistanceType,
     pub truck_distances: Vec<Vec<f64>>,
     pub drone_distances: Vec<Vec<f64>>,
 
@@ -424,13 +462,89 @@ pub struct Config {
     pub extra: String,
 }
 
+impl From<SerializedConfig> for Config {
+    fn from(config: SerializedConfig) -> Config {
+        let truck_distances = config.truck_distance.matrix(&config.x, &config.y);
+        let drone_distances = config.drone_distance.matrix(&config.x, &config.y);
+
+        Config {
+            customers_count: config.customers_count,
+            trucks_count: config.trucks_count,
+            drones_count: config.drones_count,
+            x: config.x,
+            y: config.y,
+            demands: config.demands,
+            dronable: config.dronable,
+            truck_distance: config.truck_distance,
+            drone_distance: config.drone_distance,
+            truck_distances,
+            drone_distances,
+            truck: config.truck,
+            drone: config.drone,
+            problem: config.problem,
+            config: config.config,
+            tabu_size_factor: config.tabu_size_factor,
+            speed_type: config.speed_type,
+            range_type: config.range_type,
+            waiting_time_limit: config.waiting_time_limit,
+            strategy: config.strategy,
+            fix_iteration: config.fix_iteration,
+            reset_after_factor: config.reset_after_factor,
+            max_elite_size: config.max_elite_size,
+            penalty_exponent: config.penalty_exponent,
+            single_truck_route: config.single_truck_route,
+            single_drone_route: config.single_drone_route,
+            verbose: config.verbose,
+            outputs: config.outputs,
+            disable_logging: config.disable_logging,
+            extra: config.extra,
+        }
+    }
+}
+
+impl From<Config> for SerializedConfig {
+    fn from(config: Config) -> SerializedConfig {
+        SerializedConfig {
+            customers_count: config.customers_count,
+            trucks_count: config.trucks_count,
+            drones_count: config.drones_count,
+            x: config.x,
+            y: config.y,
+            demands: config.demands,
+            dronable: config.dronable,
+            truck_distance: config.truck_distance,
+            drone_distance: config.drone_distance,
+            truck: config.truck,
+            drone: config.drone,
+            problem: config.problem,
+            config: config.config,
+            tabu_size_factor: config.tabu_size_factor,
+            speed_type: config.speed_type,
+            range_type: config.range_type,
+            waiting_time_limit: config.waiting_time_limit,
+            strategy: config.strategy,
+            fix_iteration: config.fix_iteration,
+            reset_after_factor: config.reset_after_factor,
+            max_elite_size: config.max_elite_size,
+            penalty_exponent: config.penalty_exponent,
+            single_truck_route: config.single_truck_route,
+            single_drone_route: config.single_drone_route,
+            verbose: config.verbose,
+            outputs: config.outputs,
+            disable_logging: config.disable_logging,
+            extra: config.extra,
+        }
+    }
+}
+
 pub static CONFIG: LazyLock<Config> = LazyLock::new(|| {
     let arguments = cli::Arguments::parse();
     println!("Received {:?}", arguments);
     match arguments.command {
         cli::Commands::Evaluate { config, .. } => {
             let data = fs::read_to_string(config).unwrap();
-            serde_json::from_str::<Config>(&data).unwrap()
+            let deserialized = serde_json::from_str::<SerializedConfig>(&data).unwrap();
+            Config::from(deserialized)
         }
         cli::Commands::Run {
             problem,
@@ -529,6 +643,8 @@ pub static CONFIG: LazyLock<Config> = LazyLock::new(|| {
                 y,
                 demands,
                 dronable,
+                truck_distance,
+                drone_distance,
                 truck_distances,
                 drone_distances,
                 truck,

@@ -5,14 +5,12 @@ import itertools
 import json
 import re
 import sqlite3
-from collections import defaultdict
 from pathlib import Path
 from typing import Any, TYPE_CHECKING
 
 
 class Namespace(argparse.Namespace):
     if TYPE_CHECKING:
-        milp: str
         directory: str
 
 
@@ -22,11 +20,9 @@ def wrap(content: Any) -> str:
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--milp", type=str, default="problems/milp")
     parser.add_argument("--directory", type=str, default="outputs/")
     args = parser.parse_args(namespace=Namespace())
 
-    milp = Path(args.milp).resolve()
     directory = Path(args.directory).resolve()
     output_csv = directory / "summary.csv"
     output_db = directory / "summary.db"
@@ -55,10 +51,6 @@ if __name__ == "__main__":
             "Endurance fixed time [s]",
             "Endurance drone speed [m/s]",
             "Cost [minute]",
-            "MILP cost [minute]",
-            "Improved [%]",
-            "MILP performance [s]",
-            "MILP status",
             "Capacity violation [kg]",
             "Energy violation [J]",
             "Waiting time violation [s]",
@@ -71,7 +63,6 @@ if __name__ == "__main__":
             "Last improved",
             "Elapsed [s]",
             "Extra",
-            "Faster [%]",
             "Weight per truck route [kg]",
             "Customers per truck route",
             "Truck routes count",
@@ -109,9 +100,6 @@ if __name__ == "__main__":
                 "endurance_fixed_time REAL",
                 "endurance_drone_speed REAL",
                 "cost REAL NOT NULL",
-                "milp_cost REAL",
-                "milp_performance REAL",
-                "milp_status TEXT",
                 "capacity_violation REAL NOT NULL",
                 "energy_violation REAL NOT NULL",
                 "waiting_time_violation REAL NOT NULL",
@@ -145,23 +133,10 @@ if __name__ == "__main__":
                     if not pattern.fullmatch(filename):
                         continue
 
-                    path = dirpath / filename
-                    print(path)
+                    with open(dirpath / filename, "r", encoding="utf-8") as reader:
+                        data = json.load(reader)
 
-                    content = path.read_text(encoding="utf-8")
-                    try:
-                        data = json.loads(content)
-                    except json.JSONDecodeError:
-                        print(f"Unable to decode JSON:\n--- BEGIN ---\n{content}\n--- END ---")
-                        raise
-
-                    problem = data["problem"]
-                    milp_result = milp / f"result_{problem}.json"
-                    milp_data: Any = defaultdict(str)
-                    if milp_result.is_file():
-                        milp_data["Solve_Time"] = 36000
-                        with milp_result.open("r", encoding="utf-8") as reader:
-                            milp_data.update(json.load(reader))
+                    problem, *_ = data["problem"].split("_")
 
                     truck_routes = data["solution"]["truck_routes"]
                     drone_routes = data["solution"]["drone_routes"]
@@ -194,11 +169,7 @@ if __name__ == "__main__":
                         str(config["truck"]["V_max (m/s)"]),
                         str(config["drone"]["_data"].get("FixedTime (s)", -1)),
                         str(config["drone"]["_data"].get("V_max (m/s)", -1)),
-                        str(data["solution"]["working_time"] / 60),
-                        str(milp_data["Optimal"]),
-                        wrap(f"=ROUND(100 * (T{row} - S{row}) / T{row}, 2)"),
-                        str(milp_data["Solve_Time"]),
-                        milp_data["status"],
+                        str(data["solution"]["working_time"]),
                         str(data["solution"]["capacity_violation"]),
                         str(data["solution"]["energy_violation"]),
                         str(data["solution"]["waiting_time_violation"]),
@@ -211,7 +182,6 @@ if __name__ == "__main__":
                         str(data["last_improved"]),
                         str(data["elapsed"]),
                         wrap(config["extra"]),
-                        wrap(f"=ROUND(100 * (V{row} - AH{row}) / V{row}, 2)"),
                         str(truck_weight / truck_route_count if truck_route_count > 0 else 0),
                         str(truck_customers / truck_route_count if truck_route_count > 0 else 0),
                         str(truck_route_count),
@@ -244,10 +214,7 @@ if __name__ == "__main__":
                             config["truck"]["V_max (m/s)"],
                             config["drone"]["_data"].get("FixedTime (s)", -1),
                             config["drone"]["_data"].get("V_max (m/s)", -1),
-                            data["solution"]["working_time"] / 60,
-                            milp_data["Optimal"],
-                            milp_data["Solve_Time"],
-                            milp_data["status"],
+                            data["solution"]["working_time"],
                             data["solution"]["capacity_violation"],
                             data["solution"]["energy_violation"],
                             data["solution"]["waiting_time_violation"],
