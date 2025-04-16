@@ -161,7 +161,7 @@ pub enum Commands {
         config: EnergyModel,
 
         /// Tabu size of each neighborhood, final value = a1 * base
-        #[arg(long, default_value_t = 1.0)]
+        #[arg(long, default_value_t = 0.5)]
         tabu_size_factor: f64,
 
         /// Speed type of drones.
@@ -193,7 +193,7 @@ pub enum Commands {
         waiting_time_limit: f64,
 
         /// Tabu search neighborhood selection strategy.
-        #[arg(long, default_value_t = Strategy::Cyclic)]
+        #[arg(long, default_value_t = Strategy::Random)]
         strategy: Strategy,
 
         /// Fix the number of iterations and disable elite set extraction. Otherwise, run until the elite set is exhausted.
