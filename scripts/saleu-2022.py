@@ -10,13 +10,12 @@ from typing import List, TYPE_CHECKING
 
 class Namespace(argparse.Namespace):
     if TYPE_CHECKING:
-        instance: str
+        path: Path
 
 
-ROOT = Path(__file__).parent.parent.resolve()
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("instance", type=str, help="Name of the original CVRP instance")
+    parser.add_argument("path", type=Path, help="Path to the original CVRP instance")
     args = parser.parse_args(namespace=Namespace())
 
     x: List[float] = []
@@ -24,13 +23,9 @@ if __name__ == "__main__":
     dronable: List[bool] = []
     demands: List[float] = []
 
-    with ROOT.joinpath(
-        "problems",
-        "saleu-2022",
-        f"{args.instance}.vrp",
-    ).open("r", encoding="utf-8") as reader:
+    with args.path.open("r", encoding="utf-8") as reader:
         data = reader.read()
-        for match in re.finditer(r"^\d+ (-?[\d\.]+) (-?[\d\.]+)$", data, flags=re.MULTILINE):
+        for match in re.finditer(r"^\s*\d+\s+(-?[\d\.]+)\s+(-?[\d\.]+)\s*$", data, flags=re.MULTILINE):
             _x, _y = map(float, match.groups())
             x.append(_x)
             y.append(_y)
@@ -50,13 +45,16 @@ if __name__ == "__main__":
         "CMT4": 12,
         "CMT5": 17,
     }
-    fleet_size = FLEET_SIZE[args.instance]
+    try:
+        fleet_size = FLEET_SIZE[args.path.stem]
+    except KeyError:
+        fleet_size = int(re.fullmatch(r"^[A-Z]-n\d+-k(\d+)$", args.path.stem).group(1))
 
     with tempfile.NamedTemporaryFile(
         "w",
         encoding="utf-8",
         suffix=".txt",
-        prefix=f"{args.instance}_",
+        prefix=f"{args.path.stem}_",
         delete=False,
     ) as output:
         output.write(f"trucks_count {(fleet_size + 1) // 2}\n")

@@ -122,7 +122,6 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        problem: [CMT1, CMT2, CMT3, CMT4, CMT5]
         steps: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 
     steps:
@@ -159,11 +158,14 @@ jobs:
             fi
           }
 
-          arguments=$(python scripts/saleu-2022.py ${{ matrix.problem }})
-          for i in $(seq $begin $end)
+          for path in $(find problems/saleu-2022/*)
           do
-            echo "RUN #$i"
-            execute "./min-timespan-delivery $arguments --disable-logging --extra ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+            arguments=$(python scripts/saleu-2022.py $path)
+            for i in $(seq $begin $end)
+            do
+              echo "RUN #$i"
+              execute "./min-timespan-delivery $arguments --disable-logging --extra ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+            done
           done
 
           exit $exitcode
@@ -172,7 +174,7 @@ jobs:
         uses: actions/upload-artifact@v4
         if: ${{ always() }}
         with:
-          name: output-${{ matrix.problem }}-${{ matrix.steps }}-saleu-2022
+          name: output-${{ matrix.steps }}-saleu-2022
           path: outputs/*
 
   compare:
