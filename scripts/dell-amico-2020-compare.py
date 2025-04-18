@@ -44,7 +44,7 @@ if __name__ == "__main__":
     output_csv = directory / "summary.csv"
     output_db = directory / "summary.db"
 
-    pattern = re.compile(r"^([^-]+?)-\w{8}\.json$")
+    pattern = re.compile(r"^.+?-\w{8}(?<!solution)\.json$")
 
     with output_csv.open("w", encoding="utf-8") as csv:
         csv.write("sep=,\n")

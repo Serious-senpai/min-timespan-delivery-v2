@@ -27,7 +27,29 @@ if __name__ == "__main__":
     output_csv = directory / "summary.csv"
     output_db = directory / "summary.db"
 
-    pattern = re.compile(r"^([^-]+?)-\w{8}\.json$")
+    pattern = re.compile(r"^.+?-\w{8}(?<!solution)\.json$")
+    saleu = {
+        "CMT1": 168,
+        "CMT2": 130.23,
+        "CMT3": 184,
+        "CMT4": 160.38,
+        "CMT5": 138,
+        "E-n51-k5": 168,
+        "E-n76-k8": 154,
+        "E-n101-k8": 186,
+        "M-n151-k12": 154,
+        "M-n200-k16": 144,
+        "P-n51-k10": 111.07,
+        "P-n55-k7": 128,
+        "P-n60-k10": 114,
+        "P-n65-k10": 126,
+        "P-n70-k10": 129.29,
+        "P-n76-k5": 202,
+        "P-n101-k4": 342.69,
+        "X-n110-k13": 1864,
+        "X-n115-k10": 2258,
+        "X-n139-k10": 2928.64,
+    }
 
     with output_csv.open("w", encoding="utf-8") as csv:
         csv.write("sep=,\n")
@@ -51,6 +73,8 @@ if __name__ == "__main__":
             "Endurance fixed time [s]",
             "Endurance drone speed [m/s]",
             "Cost [minute]",
+            "Saleu cost",
+            "Improved [%]",
             "Capacity violation [kg]",
             "Energy violation [J]",
             "Waiting time violation [s]",
@@ -170,6 +194,8 @@ if __name__ == "__main__":
                         str(config["drone"]["_data"].get("FixedTime (s)", -1)),
                         str(config["drone"]["_data"].get("V_max (m/s)", -1)),
                         str(data["solution"]["working_time"]),
+                        str(saleu[problem]),
+                        wrap(f"=ROUND(100 * (T{row} - S{row}) / T{row}, 2)"),
                         str(data["solution"]["capacity_violation"]),
                         str(data["solution"]["energy_violation"]),
                         str(data["solution"]["waiting_time_violation"]),
