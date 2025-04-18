@@ -48,7 +48,7 @@ if __name__ == "__main__":
     try:
         fleet_size = FLEET_SIZE[args.path.stem]
     except KeyError:
-        fleet_size = int(re.fullmatch(r"^[A-Z]-n\d+-k(\d+)$", args.path.stem).group(1))
+        fleet_size = int(re.fullmatch(r"^[A-Z]-n\d+-k(\d+)$", args.path.stem).group(1))  # type: ignore
 
     with tempfile.NamedTemporaryFile(
         "w",
