@@ -38,7 +38,6 @@ for file in namespace.directory.glob("*-config.json"):
 
 
 linear: Dict[str, str] = {}
-non_linear: Dict[str, str] = {}
 for problem in problems:
     process = subprocess.Popen(
         [
@@ -70,6 +69,7 @@ for problem in problems:
     linear[Path(problem).stem.split("-")[0]] = config
 
 
+non_linear: Dict[str, str] = {}
 for problem in problems:
     process = subprocess.Popen(
         [
@@ -112,5 +112,12 @@ for file in namespace.directory.glob("*-solution.json"):
             namespace.executable, "evaluate",
             str(file),
             linear[problem],
+        ]
+    )
+    subprocess.run(
+        [
+            namespace.executable, "evaluate",
+            str(file),
+            non_linear[problem],
         ]
     )
