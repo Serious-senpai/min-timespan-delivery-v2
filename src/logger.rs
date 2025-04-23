@@ -161,7 +161,7 @@ impl Logger<'_> {
 
         let json_path = self
             ._outputs
-            .join(&format!("{}-{}.json", self._problem, self._id));
+            .join(format!("{}-{}.json", self._problem, self._id));
         let mut json = File::create(&json_path)?;
         println!("{}", json_path.display());
         json.write_all(
@@ -180,14 +180,14 @@ impl Logger<'_> {
 
         let json_path = self
             ._outputs
-            .join(&format!("{}-{}-solution.json", self._problem, self._id));
+            .join(format!("{}-{}-solution.json", self._problem, self._id));
         let mut json = File::create(&json_path)?;
         println!("{}", json_path.display());
         json.write_all(serde_json::to_string(&result)?.as_bytes())?;
 
         let json_path = self
             ._outputs
-            .join(&format!("{}-{}-config.json", self._problem, self._id));
+            .join(format!("{}-{}-config.json", self._problem, self._id));
         let mut json = File::create(&json_path)?;
         println!("{}", json_path.display());
         json.write_all(serde_json::to_string(&serialized_config)?.as_bytes())?;
