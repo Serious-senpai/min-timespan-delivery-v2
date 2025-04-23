@@ -665,101 +665,108 @@ impl Solution {
         };
 
         let mut result = Rc::new(root);
-        let mut current = result.clone();
-
-        let mut elite_set = vec![];
-        elite_set.push(result.clone());
-
-        let mut neighborhood_idx = 0;
         let mut last_improved = 0;
 
-        let iteration_range = match CONFIG.fix_iteration {
-            Some(iteration) => 1..iteration + 1,
-            None => 1..usize::MAX,
-        };
-        let mut rng = rand::rng();
+        if !CONFIG.dry_run {
+            let mut current = result.clone();
 
-        let mut tabu_lists = vec![vec![]; NEIGHBORHOODS.len()];
+            let mut elite_set = vec![];
+            elite_set.push(result.clone());
 
-        for iteration in iteration_range {
-            if CONFIG.verbose {
-                print!(
-                    "Iteration #{} (reset in {}): {:.2}/{:.2}, elite set {}/{}     \r",
-                    iteration,
-                    reset_after.saturating_sub((iteration - last_improved) % reset_after),
-                    current.cost(),
-                    result.cost(),
-                    elite_set.len(),
-                    CONFIG.max_elite_size
-                );
-            }
+            let mut neighborhood_idx = 0;
 
-            let neighborhood = NEIGHBORHOODS[neighborhood_idx];
-            let tabu_list = &mut tabu_lists[neighborhood_idx];
+            let iteration_range = match CONFIG.fix_iteration {
+                Some(iteration) => 1..iteration + 1,
+                None => 1..usize::MAX,
+            };
+            let mut rng = rand::rng();
 
-            let old_current = current.clone();
-            if let Some(neighbor) =
-                neighborhood.search(&current, tabu_list, tabu_size, result.cost())
-            {
-                let neighbor = Rc::new(neighbor);
-                if neighbor.cost() < result.cost() && neighbor.feasible {
-                    result = neighbor.clone();
-                    last_improved = iteration;
+            let mut tabu_lists = vec![vec![]; NEIGHBORHOODS.len()];
 
-                    if CONFIG.max_elite_size > 0 {
-                        if elite_set.len() == CONFIG.max_elite_size {
-                            let (idx, _) = elite_set
-                                .iter()
-                                .enumerate()
-                                .min_by_key(|s| s.1.hamming_distance(&result))
-                                .unwrap();
-                            elite_set.remove(idx);
+            for iteration in iteration_range {
+                if CONFIG.verbose {
+                    eprint!(
+                        "Iteration #{} (reset in {}): {:.2}/{:.2}, elite set {}/{}     \r",
+                        iteration,
+                        reset_after.saturating_sub((iteration - last_improved) % reset_after),
+                        current.cost(),
+                        result.cost(),
+                        elite_set.len(),
+                        CONFIG.max_elite_size
+                    );
+                }
+
+                let neighborhood = NEIGHBORHOODS[neighborhood_idx];
+                let tabu_list = &mut tabu_lists[neighborhood_idx];
+
+                let old_current = current.clone();
+                if let Some(neighbor) =
+                    neighborhood.search(&current, tabu_list, tabu_size, result.cost())
+                {
+                    let neighbor = Rc::new(neighbor);
+                    if neighbor.cost() < result.cost() && neighbor.feasible {
+                        result = neighbor.clone();
+                        last_improved = iteration;
+
+                        if CONFIG.max_elite_size > 0 {
+                            if elite_set.len() == CONFIG.max_elite_size {
+                                let (idx, _) = elite_set
+                                    .iter()
+                                    .enumerate()
+                                    .min_by_key(|s| s.1.hamming_distance(&result))
+                                    .unwrap();
+                                elite_set.remove(idx);
+                            }
+
+                            elite_set.push(neighbor.clone());
                         }
-
-                        elite_set.push(neighbor.clone());
                     }
+
+                    current = neighbor;
                 }
 
-                current = neighbor;
-            }
+                if iteration != last_improved && (iteration - last_improved) % reset_after == 0 {
+                    if elite_set.is_empty() {
+                        break;
+                    }
 
-            if iteration != last_improved && (iteration - last_improved) % reset_after == 0 {
-                if elite_set.is_empty() {
-                    break;
+                    let i = rng.random_range(0..elite_set.len());
+                    current = elite_set.swap_remove(i);
                 }
 
-                let i = rng.random_range(0..elite_set.len());
-                current = elite_set.swap_remove(i);
-            }
+                _update_violation::<0>(current.energy_violation);
+                _update_violation::<1>(current.capacity_violation);
+                _update_violation::<2>(current.waiting_time_violation);
+                _update_violation::<3>(current.fixed_time_violation);
 
-            _update_violation::<0>(current.energy_violation);
-            _update_violation::<1>(current.capacity_violation);
-            _update_violation::<2>(current.waiting_time_violation);
-            _update_violation::<3>(current.fixed_time_violation);
+                logger.log(&current, neighborhood, tabu_list).unwrap();
 
-            logger.log(&current, neighborhood, tabu_list).unwrap();
-
-            match CONFIG.strategy {
-                Strategy::Random => {
-                    neighborhood_idx = rng.random_range(0..NEIGHBORHOODS.len());
-                }
-                Strategy::Cyclic => {
-                    neighborhood_idx = (neighborhood_idx + 1) % NEIGHBORHOODS.len();
-                }
-                Strategy::Vns => {
-                    if iteration == last_improved {
-                        neighborhood_idx = 0;
-                    } else {
+                match CONFIG.strategy {
+                    Strategy::Random => {
+                        neighborhood_idx = rng.random_range(0..NEIGHBORHOODS.len());
+                    }
+                    Strategy::Cyclic => {
                         neighborhood_idx = (neighborhood_idx + 1) % NEIGHBORHOODS.len();
-                        if neighborhood_idx != 0 {
-                            current = old_current;
+                    }
+                    Strategy::Vns => {
+                        if iteration == last_improved {
+                            neighborhood_idx = 0;
+                        } else {
+                            neighborhood_idx = (neighborhood_idx + 1) % NEIGHBORHOODS.len();
+                            if neighborhood_idx != 0 {
+                                current = old_current;
+                            }
                         }
                     }
                 }
             }
-        }
 
-        result = Rc::new(result.post_optimization());
+            if CONFIG.verbose {
+                eprintln!();
+            }
+
+            result = Rc::new(result.post_optimization());
+        }
 
         logger
             .finalize(&result, tabu_size, reset_after, last_improved)

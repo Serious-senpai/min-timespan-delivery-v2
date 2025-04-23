@@ -64,7 +64,7 @@ impl Logger<'_> {
         };
 
         if let Some(ref mut writer) = writer {
-            println!("Logging iterations to {:?}", writer);
+            eprintln!("Logging iterations to {:?}", writer);
 
             let columns = vec![
                 "Iteration",
@@ -159,11 +159,11 @@ impl Logger<'_> {
         let elapsed = SystemTime::now().duration_since(UNIX_EPOCH).unwrap() - self._time_offset;
         let serialized_config = SerializedConfig::from(CONFIG.clone());
 
-        let mut json = File::create(
-            self._outputs
-                .join(format!("{}-{}.json", self._problem, self._id)),
-        )?;
-        println!("Writing summary to {:?}", json);
+        let json_path = self
+            ._outputs
+            .join(&format!("{}-{}.json", self._problem, self._id));
+        let mut json = File::create(&json_path)?;
+        println!("{}", json_path.display());
         json.write_all(
             serde_json::to_string(&RunJSON {
                 problem: self._problem.clone(),
@@ -178,18 +178,18 @@ impl Logger<'_> {
             .as_bytes(),
         )?;
 
-        let mut json = File::create(
-            self._outputs
-                .join(format!("{}-{}-solution.json", self._problem, self._id)),
-        )?;
-        println!("Writing solution to {:?}", json);
+        let json_path = self
+            ._outputs
+            .join(&format!("{}-{}-solution.json", self._problem, self._id));
+        let mut json = File::create(&json_path)?;
+        println!("{}", json_path.display());
         json.write_all(serde_json::to_string(&result)?.as_bytes())?;
 
-        let mut json = File::create(
-            self._outputs
-                .join(format!("{}-{}-config.json", self._problem, self._id)),
-        )?;
-        println!("Writing config to {:?}", json);
+        let json_path = self
+            ._outputs
+            .join(&format!("{}-{}-config.json", self._problem, self._id));
+        let mut json = File::create(&json_path)?;
+        println!("{}", json_path.display());
         json.write_all(serde_json::to_string(&serialized_config)?.as_bytes())?;
 
         Ok(())

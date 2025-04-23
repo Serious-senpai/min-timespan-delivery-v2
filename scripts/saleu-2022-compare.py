@@ -11,7 +11,7 @@ from typing import Any, TYPE_CHECKING
 
 class Namespace(argparse.Namespace):
     if TYPE_CHECKING:
-        directory: str
+        directory: Path
 
 
 def wrap(content: Any) -> str:
@@ -19,11 +19,11 @@ def wrap(content: Any) -> str:
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--directory", type=str, default="outputs/")
-    args = parser.parse_args(namespace=Namespace())
+    parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    parser.add_argument("--directory", type=Path, default="outputs/")
+    namespace = parser.parse_args(namespace=Namespace())
 
-    directory = Path(args.directory).resolve()
+    directory = namespace.directory
     output_csv = directory / "summary.csv"
     output_db = directory / "summary.db"
 

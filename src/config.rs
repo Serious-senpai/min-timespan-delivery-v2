@@ -421,6 +421,7 @@ pub struct SerializedConfig {
     verbose: bool,
     outputs: String,
     disable_logging: bool,
+    dry_run: bool,
     extra: String,
 }
 
@@ -459,6 +460,7 @@ pub struct Config {
     pub verbose: bool,
     pub outputs: String,
     pub disable_logging: bool,
+    pub dry_run: bool,
     pub extra: String,
 }
 
@@ -497,6 +499,7 @@ impl From<SerializedConfig> for Config {
             verbose: config.verbose,
             outputs: config.outputs,
             disable_logging: config.disable_logging,
+            dry_run: config.dry_run,
             extra: config.extra,
         }
     }
@@ -532,6 +535,7 @@ impl From<Config> for SerializedConfig {
             verbose: config.verbose,
             outputs: config.outputs,
             disable_logging: config.disable_logging,
+            dry_run: config.dry_run,
             extra: config.extra,
         }
     }
@@ -539,7 +543,7 @@ impl From<Config> for SerializedConfig {
 
 pub static CONFIG: LazyLock<Config> = LazyLock::new(|| {
     let arguments = cli::Arguments::parse();
-    println!("Received {:?}", arguments);
+    eprintln!("Received {:?}", arguments);
     match arguments.command {
         cli::Commands::Evaluate { config, .. } => {
             let data = fs::read_to_string(config).unwrap();
@@ -569,6 +573,7 @@ pub static CONFIG: LazyLock<Config> = LazyLock::new(|| {
             verbose,
             outputs,
             disable_logging,
+            dry_run,
             extra,
         } => {
             let trucks_count_regex = Regex::new(r"trucks_count (\d+)").unwrap();
@@ -665,6 +670,7 @@ pub static CONFIG: LazyLock<Config> = LazyLock::new(|| {
                 verbose,
                 outputs,
                 disable_logging,
+                dry_run,
                 extra,
             }
         }

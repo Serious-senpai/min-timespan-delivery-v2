@@ -25,8 +25,8 @@ class DellAmicoResult(NamedTuple):
 
 class Namespace(argparse.Namespace):
     if TYPE_CHECKING:
-        against: str
-        directory: str
+        against: Path
+        directory: Path
 
 
 def wrap(content: Any) -> str:
@@ -34,13 +34,13 @@ def wrap(content: Any) -> str:
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--against", type=str, default="problems/dell-amico/tsplib-results.csv")
-    parser.add_argument("--directory", type=str, default="outputs/")
-    args = parser.parse_args(namespace=Namespace())
+    parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    parser.add_argument("--against", type=Path, default="problems/dell-amico/tsplib-results.csv")
+    parser.add_argument("--directory", type=Path, default="outputs/")
+    namespace = parser.parse_args(namespace=Namespace())
 
-    against = Path(args.against).resolve()
-    directory = Path(args.directory).resolve()
+    against = namespace.against
+    directory = namespace.directory
     output_csv = directory / "summary.csv"
     output_db = directory / "summary.db"
 

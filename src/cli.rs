@@ -234,6 +234,10 @@ pub enum Commands {
         #[arg(long)]
         disable_logging: bool,
 
+        /// Do not run the algorithm, only generate the config file
+        #[arg(long)]
+        dry_run: bool,
+
         /// Extra data to store in the output JSON
         #[arg(long, default_value_t = String::new())]
         extra: String,
