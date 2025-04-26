@@ -98,7 +98,7 @@ jobs:
               let trucks_count=$(grep -oP '(?<=trucks_count )\d+' $path)+${{ matrix.delta.trucks-count }}
               let drones_count=${{ matrix.delta.drones-count }}
 
-              execute "./min-timespan-delivery run $path --drone-cfg problems/config_parameter/uavsupplies.json --trucks-count $trucks_count --drones-count $drones_count --disable-logging --extra ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+              execute "./min-timespan-delivery run $path --drone-cfg problems/config_parameter/uavsupplies.json --trucks-count $trucks_count --drones-count $drones_count --disable-logging --extra '(${{ matrix.delta.trucks-count }}, ${{ matrix.delta.drones-count }}) ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}'"
             done
           done
 
