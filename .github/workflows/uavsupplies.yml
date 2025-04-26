@@ -1,6 +1,6 @@
 name: Run algorithm
 
-on: push
+on: workflow_dispatch
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -45,6 +45,15 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
+        delta: [
+          {trucks-count: 0, drones-count: 0},
+          {trucks-count: 1, drones-count: 0},
+          {trucks-count: 2, drones-count: 0},
+          {trucks-count: 3, drones-count: 0},
+          {trucks-count: 0, drones-count: 1},
+          {trucks-count: 0, drones-count: 2},
+          {trucks-count: 0, drones-count: 3},
+        ]
         steps: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 
     steps:
@@ -86,7 +95,10 @@ jobs:
             echo "RUN #$i"
             for path in $(find problems/data/*)
             do
-              execute "./min-timespan-delivery run $path --disable-logging --extra ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+              let trucks_count=$(grep -oP '(?<=trucks_count )\d+' $path)+${{ matrix.delta.trucks-count }}
+              let drones_count=${{ matrix.delta.drones-count }}
+
+              execute "./min-timespan-delivery run $path --drone-cfg problems/config_parameter/uavsupplies.json --trucks-count $trucks_count --drones-count $drones_count --disable-logging --extra ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
             done
           done
 
@@ -96,7 +108,7 @@ jobs:
         uses: actions/upload-artifact@v4
         if: ${{ always() }}
         with:
-          name: output-${{ matrix.steps }}
+          name: output${{ matrix.delta.trucks-count }}-${{ matrix.delta.drones-count }}-${{ matrix.steps }}
           path: outputs/*
 
   summary:
