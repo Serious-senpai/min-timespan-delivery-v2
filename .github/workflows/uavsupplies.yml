@@ -1,4 +1,4 @@
-name: Run algorithm
+name: Real drone specification
 
 on: workflow_dispatch
 
