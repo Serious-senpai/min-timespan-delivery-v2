@@ -1,0 +1,95 @@
+<html>
+
+<head>
+    <meta name=viewport content="width=device-width,initial-scale=1">
+    <meta charset="utf-8" />
+    <script src="https://www.geogebra.org/apps/deployggb.js"></script>
+    <script>
+        const x = undefined; // DATA SECTION
+        const y = undefined; // DATA SECTION
+        const dronable = undefined; // DATA SECTION
+        const enduranceDroneRange = undefined; // DATA SECTION
+        const truck_routes = undefined; // DATA SECTION
+        const drone_routes = undefined; // DATA SECTION
+
+        const params = {
+            "appName": "classic",
+            "showZoomButtons": true,
+            "showToolBar": true,
+            "showAlgebraInput": true,
+            "showMenuBar": true,
+            "showResetIcon": true,
+            "appletOnLoad": function (ggbApplet) {
+                ggbApplet.evalCommand(`C_0 = (${x[0]}, ${y[0]})`);
+                ggbApplet.setColor("C_0", 0, 0, 0);
+
+                if (x.length != y.length || y.length != dronable.length) {
+                    throw new Error("x, y and dronable arrays must be of the same length");
+                }
+
+                for (let i = 1; i < x.length; i++) {
+                    ggbApplet.evalLaTeX(`C_{${i}} = (${x[i]}, ${y[i]})`);
+
+                    if (dronable[i]) {
+                        ggbApplet.setColor(`C_{${i}}`, 255, 0, 0);
+                    } else {
+                        ggbApplet.setColor(`C_{${i}}`, 30, 144, 255);
+                    }
+                }
+
+                if (enduranceDroneRange) {
+                    ggbApplet.evalCommand(`x^2 + y^2 = ${enduranceDroneRange}^2`);
+                }
+
+                for (let truck = 0; truck < truck_routes.length; truck++) {
+                    for (let route = 0; route < truck_routes[truck].length; route++) {
+                        for (let i = 0; i + 1 < truck_routes[truck][route].length; i++) {
+                            const name = `t_{${truck}.${route}.${i}}`;
+                            const current = truck_routes[truck][route][i];
+                            const next = truck_routes[truck][route][i + 1];
+                            ggbApplet.evalLaTeX(`${name} = Vector(C_{${current}}, C_{${next}})`);
+                            ggbApplet.setLabelVisible(name, false);
+                            ggbApplet.setColor(name, 0, 191, 255);
+                        }
+                    }
+                }
+
+                for (let drone = 0; drone < drone_routes.length; drone++) {
+                    for (let route = 0; route < drone_routes[drone].length; route++) {
+                        for (let i = 0; i + 1 < drone_routes[drone][route].length; i++) {
+                            const name = `d_{${drone}.${route}.${i}}`;
+                            const current = drone_routes[drone][route][i];
+                            const next = drone_routes[drone][route][i + 1];
+                            ggbApplet.evalLaTeX(`${name} = Vector(C_{${current}}, C_{${next}})`);
+                            ggbApplet.setLabelVisible(name, false);
+                            ggbApplet.setColor(name, 240, 128, 128);
+                        }
+                    }
+                }
+            },
+            "showLogging": true,
+            "showFullscreenButton": true,
+        };
+
+        const applet = new GGBApplet(params, true);
+
+        window.addEventListener(
+            "load",
+            function () {
+                applet.inject("ggb-element");
+            }
+        );
+    </script>
+    <style>
+        #ggb-element {
+            height: 100%;
+            width: 100%;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="ggb-element"></div>
+</body>
+
+</html>
