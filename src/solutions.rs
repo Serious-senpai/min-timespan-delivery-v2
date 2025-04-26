@@ -640,6 +640,8 @@ impl Solution {
                 drone_routes[min_idx].push(route.clone());
                 working_time[min_idx] += route.working_time();
             }
+        } else {
+            drone_routes.clear();
         }
 
         Solution::new(truck_routes, drone_routes)
