@@ -639,10 +639,11 @@ impl DroneRoute {
         let mut energy = 0.0;
         let mut weight = 0.0;
         let mut _waiting_time_violation = 0.0;
+
+        let takeoff = drone.takeoff_time();
+        let landing = drone.landing_time();
         for i in 0..customers.len() - 1 {
-            let takeoff = drone.takeoff_time();
             let cruise = drone.cruise_time(distances[customers[i]][customers[i + 1]]);
-            let landing = drone.landing_time();
 
             time += takeoff + cruise + landing;
             energy += drone.takeoff_power(weight) * takeoff

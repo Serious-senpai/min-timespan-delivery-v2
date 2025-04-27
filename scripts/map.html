@@ -1,0 +1,130 @@
+<html>
+
+<head>
+    <meta name=viewport content="width=device-width,initial-scale=1">
+    <meta charset="utf-8" />
+
+    <script src="https://www.geogebra.org/apps/deployggb.js"></script>
+    <script>
+        const x = undefined; // DATA SECTION
+        const y = undefined; // DATA SECTION
+        const dronable = undefined; // DATA SECTION
+        const enduranceDroneRange = undefined; // DATA SECTION
+        const truck_routes = undefined; // DATA SECTION
+        const drone_routes = undefined; // DATA SECTION
+        const truck_distance = undefined; // DATA SECTION
+        const drone_distance = undefined; // DATA SECTION
+
+        const params = {
+            "appName": "classic",
+            "showZoomButtons": true,
+            "showToolBar": true,
+            "showAlgebraInput": true,
+            "showMenuBar": true,
+            "showResetIcon": true,
+            "appletOnLoad": function (ggbApplet) {
+                if (x.length != y.length || y.length != dronable.length) {
+                    throw new Error("x, y and dronable arrays must be of the same length");
+                }
+
+                const createPoints = [];
+                for (let i = 0; i < x.length; i++) {
+                    createPoints.push(`C_{${i}} = (${x[i]}, ${y[i]})`);
+                }
+                ggbApplet.evalCommand(createPoints.join("\n"));
+
+                for (let i = 0; i < x.length; i++) {
+                    ggbApplet.setFixed(`C_{${i}}`, true, true);
+                    ggbApplet.setPointSize(`C_{${i}}`, 3);
+
+                    if (dronable[i]) {
+                        ggbApplet.setColor(`C_{${i}}`, 255, 0, 0);
+                    } else {
+                        ggbApplet.setColor(`C_{${i}}`, 30, 144, 255);
+                    }
+                }
+
+                if (enduranceDroneRange) {
+                    ggbApplet.evalCommand(`rg = Circle(C_0, ${enduranceDroneRange})`);
+                    ggbApplet.setLabelVisible("rg", false);
+                    ggbApplet.setLineStyle("rg", 2);
+                }
+
+                for (let truck = 0; truck < truck_routes.length; truck++) {
+                    for (let route = 0; route < truck_routes[truck].length; route++) {
+                        for (let i = 0; i + 1 < truck_routes[truck][route].length; i++) {
+                            const name = `t_{${truck}.${route}.${i}}`;
+                            const current = truck_routes[truck][route][i];
+                            const next = truck_routes[truck][route][i + 1];
+
+                            ggbApplet.evalLaTeX(`${name} = Vector(C_{${current}}, C_{${next}})`);
+                            ggbApplet.setCaption(
+                                name,
+                                truck_distance(x[next] - x[current], y[next] - y[current]),
+                            );
+                            ggbApplet.setLabelStyle(name, 3);
+                            ggbApplet.setLabelVisible(name, false);
+                            ggbApplet.setColor(name, 138, 43, 226);
+                        }
+                    }
+                }
+
+                for (let drone = 0; drone < drone_routes.length; drone++) {
+                    for (let route = 0; route < drone_routes[drone].length; route++) {
+                        for (let i = 0; i + 1 < drone_routes[drone][route].length; i++) {
+                            const name = `d_{${drone}.${route}.${i}}`;
+                            const current = drone_routes[drone][route][i];
+                            const next = drone_routes[drone][route][i + 1];
+
+                            ggbApplet.evalLaTeX(`${name} = Vector(C_{${current}}, C_{${next}})`);
+                            ggbApplet.setCaption(
+                                name,
+                                drone_distance(x[next] - x[current], y[next] - y[current]),
+                            );
+                            ggbApplet.setLabelStyle(name, 3);
+                            ggbApplet.setLabelVisible(name, false);
+                            ggbApplet.setColor(name, 255, 69, 0);
+                        }
+                    }
+                }
+
+                // ggbApplet.setCoordSystem(Math.min(...x), Math.max(...x), Math.min(...y), Math.max(...y));
+                ggbApplet.setGridVisible(false);
+                ggbApplet.enable3D(false);
+            },
+            "showFullscreenButton": true,
+        };
+
+        const applet = new GGBApplet(params, true);
+
+        window.addEventListener(
+            "load",
+            function () {
+                applet.inject("ggb-element");
+            }
+        );
+    </script>
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            display: block;
+            height: 100vh;
+            margin: 0;
+            width: 100vw;
+        }
+
+        #ggb-element {
+            height: 100%;
+            width: 100%;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="ggb-element"></div>
+</body>
+
+</html>
