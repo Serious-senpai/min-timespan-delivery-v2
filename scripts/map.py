@@ -42,7 +42,7 @@ drone = data["config"]["drone"]
 if drone["config"] == "Endurance":
     html = html.replace(
         "const enduranceDroneRange = undefined; // DATA SECTION",
-        f"const enduranceDroneRange = {drone['_data']['FixedTime (s)'] * drone['_data']['V_max (m/s)']};",
+        f"const enduranceDroneRange = {drone['_data']['FixedTime (s)'] * drone['_data']['V_max (m/s)'] / 2};",
     )
 
 

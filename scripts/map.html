@@ -3,6 +3,7 @@
 <head>
     <meta name=viewport content="width=device-width,initial-scale=1">
     <meta charset="utf-8" />
+
     <script src="https://www.geogebra.org/apps/deployggb.js"></script>
     <script>
         const x = undefined; // DATA SECTION
@@ -22,22 +23,19 @@
             "showMenuBar": true,
             "showResetIcon": true,
             "appletOnLoad": function (ggbApplet) {
-                ggbApplet.evalCommand(`C_0 = (${x[0]}, ${y[0]})`);
-                ggbApplet.setFixed("C_0", true, true);
-                ggbApplet.setColor("C_0", 0, 0, 0);
-
                 if (x.length != y.length || y.length != dronable.length) {
                     throw new Error("x, y and dronable arrays must be of the same length");
                 }
 
                 const createPoints = [];
-                for (let i = 1; i < x.length; i++) {
+                for (let i = 0; i < x.length; i++) {
                     createPoints.push(`C_{${i}} = (${x[i]}, ${y[i]})`);
                 }
                 ggbApplet.evalCommand(createPoints.join("\n"));
 
-                for (let i = 1; i < x.length; i++) {
+                for (let i = 0; i < x.length; i++) {
                     ggbApplet.setFixed(`C_{${i}}`, true, true);
+                    ggbApplet.setPointSize(`C_{${i}}`, 3);
 
                     if (dronable[i]) {
                         ggbApplet.setColor(`C_{${i}}`, 255, 0, 0);
@@ -93,16 +91,7 @@
                 // ggbApplet.setCoordSystem(Math.min(...x), Math.max(...x), Math.min(...y), Math.max(...y));
                 ggbApplet.setGridVisible(false);
                 ggbApplet.enable3D(false);
-                ggbApplet.addCustomTool(
-                    "https://cdn.discordapp.com/attachments/850726364079456348/1365995498967797880/mikuhappy.png?ex=680f55f1&is=680e0471&hm=e1fe7ef2ecf7d5bf28f375ac105e29e90f261c9ba2c1a31ed0a9e938ed679247",
-                    "Test",
-                    "more",
-                    function () {
-                        console.log("Test");
-                    },
-                )
             },
-            "showLogging": true,
             "showFullscreenButton": true,
         };
 

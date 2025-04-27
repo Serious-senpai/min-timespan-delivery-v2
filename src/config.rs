@@ -637,7 +637,10 @@ pub static CONFIG: LazyLock<Config> = LazyLock::new(|| {
             let drone = DroneConfig::new(&drone_cfg, config, speed_type, range_type);
 
             for i in 1..customers_count + 1 {
-                dronable[i] = dronable[i] && demands[i] <= drone.capacity();
+                dronable[i] = dronable[i]
+                    && demands[i] <= drone.capacity()
+                    && drone.cruise_time(drone_distances[0][i] + drone_distances[i][0])
+                        <= drone.fixed_time();
             }
 
             Config {
