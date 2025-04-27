@@ -11,6 +11,8 @@
         const enduranceDroneRange = undefined; // DATA SECTION
         const truck_routes = undefined; // DATA SECTION
         const drone_routes = undefined; // DATA SECTION
+        const truck_distance = undefined; // DATA SECTION
+        const drone_distance = undefined; // DATA SECTION
 
         const params = {
             "appName": "classic",
@@ -21,14 +23,21 @@
             "showResetIcon": true,
             "appletOnLoad": function (ggbApplet) {
                 ggbApplet.evalCommand(`C_0 = (${x[0]}, ${y[0]})`);
+                ggbApplet.setFixed("C_0", true, true);
                 ggbApplet.setColor("C_0", 0, 0, 0);
 
                 if (x.length != y.length || y.length != dronable.length) {
                     throw new Error("x, y and dronable arrays must be of the same length");
                 }
 
+                const createPoints = [];
                 for (let i = 1; i < x.length; i++) {
-                    ggbApplet.evalLaTeX(`C_{${i}} = (${x[i]}, ${y[i]})`);
+                    createPoints.push(`C_{${i}} = (${x[i]}, ${y[i]})`);
+                }
+                ggbApplet.evalCommand(createPoints.join("\n"));
+
+                for (let i = 1; i < x.length; i++) {
+                    ggbApplet.setFixed(`C_{${i}}`, true, true);
 
                     if (dronable[i]) {
                         ggbApplet.setColor(`C_{${i}}`, 255, 0, 0);
@@ -38,7 +47,9 @@
                 }
 
                 if (enduranceDroneRange) {
-                    ggbApplet.evalCommand(`x^2 + y^2 = ${enduranceDroneRange}^2`);
+                    ggbApplet.evalCommand(`rg = Circle(C_0, ${enduranceDroneRange})`);
+                    ggbApplet.setLabelVisible("rg", false);
+                    ggbApplet.setLineStyle("rg", 2);
                 }
 
                 for (let truck = 0; truck < truck_routes.length; truck++) {
@@ -47,9 +58,15 @@
                             const name = `t_{${truck}.${route}.${i}}`;
                             const current = truck_routes[truck][route][i];
                             const next = truck_routes[truck][route][i + 1];
+
                             ggbApplet.evalLaTeX(`${name} = Vector(C_{${current}}, C_{${next}})`);
+                            ggbApplet.setCaption(
+                                name,
+                                truck_distance(x[next] - x[current], y[next] - y[current]),
+                            );
+                            ggbApplet.setLabelStyle(name, 3);
                             ggbApplet.setLabelVisible(name, false);
-                            ggbApplet.setColor(name, 0, 191, 255);
+                            ggbApplet.setColor(name, 138, 43, 226);
                         }
                     }
                 }
@@ -60,12 +77,30 @@
                             const name = `d_{${drone}.${route}.${i}}`;
                             const current = drone_routes[drone][route][i];
                             const next = drone_routes[drone][route][i + 1];
+
                             ggbApplet.evalLaTeX(`${name} = Vector(C_{${current}}, C_{${next}})`);
+                            ggbApplet.setCaption(
+                                name,
+                                drone_distance(x[next] - x[current], y[next] - y[current]),
+                            );
+                            ggbApplet.setLabelStyle(name, 3);
                             ggbApplet.setLabelVisible(name, false);
-                            ggbApplet.setColor(name, 240, 128, 128);
+                            ggbApplet.setColor(name, 255, 69, 0);
                         }
                     }
                 }
+
+                // ggbApplet.setCoordSystem(Math.min(...x), Math.max(...x), Math.min(...y), Math.max(...y));
+                ggbApplet.setGridVisible(false);
+                ggbApplet.enable3D(false);
+                ggbApplet.addCustomTool(
+                    "https://cdn.discordapp.com/attachments/850726364079456348/1365995498967797880/mikuhappy.png?ex=680f55f1&is=680e0471&hm=e1fe7ef2ecf7d5bf28f375ac105e29e90f261c9ba2c1a31ed0a9e938ed679247",
+                    "Test",
+                    "more",
+                    function () {
+                        console.log("Test");
+                    },
+                )
             },
             "showLogging": true,
             "showFullscreenButton": true,
@@ -81,6 +116,17 @@
         );
     </script>
     <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            display: block;
+            height: 100vh;
+            margin: 0;
+            width: 100vw;
+        }
+
         #ggb-element {
             height: 100%;
             width: 100%;

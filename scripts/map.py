@@ -56,6 +56,20 @@ html = html.replace(
 )
 
 
+distance_func = {
+    "manhattan": "function (dx, dy) { return Math.abs(dx) + Math.abs(dy); }",
+    "euclidean": "function (dx, dy) { return Math.sqrt(dx * dx + dy * dy); }",
+}
+html = html.replace(
+    "const truck_distance = undefined; // DATA SECTION",
+    f"const truck_distance = {distance_func[data['config']['truck_distance']]};",
+)
+html = html.replace(
+    "const drone_distance = undefined; // DATA SECTION",
+    f"const drone_distance = {distance_func[data['config']['drone_distance']]};",
+)
+
+
 with tempfile.NamedTemporaryFile(
     "w",
     encoding="utf-8",
