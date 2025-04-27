@@ -60,6 +60,7 @@ with tempfile.NamedTemporaryFile(
     "w",
     encoding="utf-8",
     suffix=".html",
+    prefix=namespace.result.stem,
     delete=False,
 ) as writer:
     writer.write(html)
