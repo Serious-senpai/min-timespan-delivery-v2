@@ -699,12 +699,14 @@ impl Solution {
                 }
 
                 let neighborhood = NEIGHBORHOODS[neighborhood_idx];
-                let tabu_list = &mut tabu_lists[neighborhood_idx];
 
                 let old_current = current.clone();
-                if let Some(neighbor) =
-                    neighborhood.search(&current, tabu_list, tabu_size, result.cost())
-                {
+                if let Some(neighbor) = neighborhood.search(
+                    &current,
+                    &mut tabu_lists[neighborhood_idx],
+                    tabu_size,
+                    result.cost(),
+                ) {
                     let neighbor = Rc::new(neighbor);
                     if neighbor.cost() < result.cost() && neighbor.feasible {
                         result = neighbor.clone();
@@ -734,6 +736,9 @@ impl Solution {
 
                     let i = rng.random_range(0..elite_set.len());
                     current = elite_set.swap_remove(i);
+                    for tabu_list in &mut tabu_lists {
+                        tabu_list.clear();
+                    }
                 }
 
                 _update_violation::<0>(current.energy_violation);
@@ -741,7 +746,9 @@ impl Solution {
                 _update_violation::<2>(current.waiting_time_violation);
                 _update_violation::<3>(current.fixed_time_violation);
 
-                logger.log(&current, neighborhood, tabu_list).unwrap();
+                logger
+                    .log(&current, neighborhood, &tabu_lists[neighborhood_idx])
+                    .unwrap();
 
                 match CONFIG.strategy {
                     Strategy::Random => {
