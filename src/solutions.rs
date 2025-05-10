@@ -189,6 +189,10 @@ impl Solution {
         customers[0] = true;
 
         for routes in &self.truck_routes {
+            if CONFIG.single_truck_route && routes.len() > 1 {
+                panic!("Truck routes {:?} have more than one route", routes);
+            }
+
             for route in routes {
                 for &c in &route.data().customers {
                     customers[c] = true;
@@ -198,6 +202,10 @@ impl Solution {
 
         for routes in &self.drone_routes {
             for route in routes {
+                if CONFIG.single_drone_route && route.data().customers.len() != 3 {
+                    panic!("Drone route {} has more than one customer", route);
+                }
+
                 for &c in &route.data().customers {
                     customers[c] = true;
                     if !CONFIG.dronable[c] {
