@@ -207,8 +207,8 @@ impl Solution {
             }
         }
 
-        for c in 1..CONFIG.customers_count + 1 {
-            if !customers[c] {
+        for (c, served) in customers.iter().enumerate() {
+            if !served {
                 panic!("Customer {} is not served", c);
             }
         }
