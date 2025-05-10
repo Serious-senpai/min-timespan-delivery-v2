@@ -129,7 +129,23 @@ impl Neighborhood {
 
                                             let mut neighbors = route_i.inter_route(route_j.clone(), self);
                                             let asymmetric = self == Self::Move10 || self == Self::Move20 || self == Self::Move21;
-                                            if asymmetric {
+                                            if asymmetric && std::ptr::addr_eq(routes_i, routes_j) /* same vehicle */ {
+                                                // We only run assymetric operations if j is also the decisive vehicle (i.e. i = j).
+                                                // Otherwise (vehicle j is not the decisive one), route i must "give" customers to route j
+                                                // in order to reduce its working time, thus provide a better solution overall.
+                                                //
+                                                // Let the current working time be W = W_i of vehicle i. If we were to move customers from j
+                                                // to i, it is undoubtedly that W' = W_i' > W = W_i.
+                                                //
+                                                // When moving customers from i to j however, we obtain W_i' < W_i = W. However, j must serve
+                                                // more customers, thus W_j' > W_j. Therefore, W' = max(W_i', W_j'). Since W_i' < W, we know
+                                                // that W' > W if and only if W' = W_j' > W_i' (j becomes the new decisive vehicle).
+                                                //
+                                                // It is unlikely that the second case produces a value of W_j' greater than W_i' in the first
+                                                // case (metrics?). Hence, we can just skip the first case (i.e. do not move customers from j
+                                                // to i).
+                                                // In this code here, the identical vehicle check allows moving customers among different
+                                                // routes of the current decisive vehicle.
                                                 neighbors.extend(
                                                     route_j
                                                         .inter_route(route_i.clone(), self)
@@ -323,9 +339,8 @@ impl Neighborhood {
                                                                 continue;
                                                             }
 
-                                                            let mut neighbors = route_i.inter_route_3(route_j.clone(), route_k.clone(), self);
-                                                            neighbors.extend(route_i.inter_route_3(route_k.clone(), route_j.clone(), self).into_iter().map(|t| (t.0, t.2, t.1, t.3)));
-
+                                                            let neighbors = route_i.inter_route_3(route_j.clone(), route_k.clone(), self);
+                                                            // No need for inter_route_3(k, j) because we are already looping through all possible pairs
                                                             for (new_route_i, new_route_j, new_route_k, tabu) in neighbors {
                                                                 if $one_customer_per_route_k && new_route_k.data().customers.len() != 3 {
                                                                     continue;
