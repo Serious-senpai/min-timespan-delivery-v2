@@ -739,6 +739,17 @@ impl Solution {
                     for tabu_list in &mut tabu_lists {
                         tabu_list.clear();
                     }
+
+                    for _ in 0..CONFIG.ejection_chain_iterations {
+                        if let Some(neighbor) = Neighborhood::EjectionChain.search(
+                            &current,
+                            &mut vec![],
+                            tabu_size,
+                            result.cost(),
+                        ) {
+                            current = Rc::new(neighbor);
+                        }
+                    }
                 }
 
                 _update_violation::<0>(current.energy_violation);

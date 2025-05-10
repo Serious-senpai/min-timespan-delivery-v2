@@ -312,13 +312,88 @@ pub trait Route: fmt::Display + Sized {
                     }
                 }
             }
+            _ => panic!(
+                "inter_route called with invalid neighborhood {}",
+                neighborhood
+            ),
+        }
+
+        results
+    }
+
+    #[allow(clippy::type_complexity)]
+    fn inter_route_3<T1, T2>(
+        &self,
+        other_x: Rc<T1>,
+        other_y: Rc<T2>,
+        neighborhood: Neighborhood,
+    ) -> Vec<(Option<Rc<Self>>, Rc<T1>, Rc<T2>, Vec<usize>)>
+    where
+        T1: Route,
+        T2: Route,
+    {
+        let customers_i = &self.data().customers;
+        let customers_j = &other_x.data().customers;
+        let customers_k = &other_y.data().customers;
+
+        let length_i = customers_i.len();
+        let length_j = customers_j.len();
+        let length_k = customers_k.len();
+
+        let mut buffer_i = customers_i.clone();
+        let mut buffer_j = customers_j.clone();
+        let mut buffer_k = customers_k.clone();
+
+        let mut results = vec![];
+
+        match neighborhood {
+            Neighborhood::EjectionChain => {
+                for idx_i in 1..length_i - 1 {
+                    if !T1::_servable(buffer_i[idx_i]) {
+                        continue;
+                    }
+
+                    let remove_x = buffer_i.remove(idx_i);
+                    for idx_j in 1..length_j - 1 {
+                        if !T2::_servable(buffer_j[idx_j]) {
+                            continue;
+                        }
+
+                        buffer_k.insert(1, buffer_j[idx_j]);
+                        buffer_j[idx_j] = remove_x;
+
+                        for idx_k in 1..length_k {
+                            let tabu = vec![remove_x, buffer_k[idx_k]];
+
+                            let ptr_i = if buffer_i.len() == 2 {
+                                None
+                            } else {
+                                Some(Self::new(buffer_i.clone()))
+                            };
+                            let ptr_j = T1::new(buffer_j.clone());
+                            let ptr_k = T2::new(buffer_k.clone());
+                            results.push((ptr_i, ptr_j, ptr_k, tabu));
+
+                            buffer_k.swap(idx_k, idx_k + 1);
+                        }
+
+                        buffer_j[idx_j] = buffer_k.pop().unwrap();
+                    }
+
+                    buffer_i.insert(idx_i, remove_x);
+                }
+            }
+            _ => panic!(
+                "inter_route_3 called with invalid neighborhood {}",
+                neighborhood
+            ),
         }
 
         results
     }
 
     /// Returns a pointer to the underlying cached intra-route neighbors.
-    fn intra_route(&self, neighborhood: Neighborhood) -> Rc<Vec<(Rc<Self>, Vec<usize>)>> {
+    fn intra_route(&self, neighborhood: Neighborhood) -> Vec<(Rc<Self>, Vec<usize>)> {
         let data = self.data();
 
         let length = data.customers.len();
@@ -495,13 +570,17 @@ pub trait Route: fmt::Display + Sized {
                     buffer[i..length - 1].reverse();
                 }
             }
+            _ => panic!(
+                "intra_route called with invalid neighborhood {}",
+                neighborhood
+            ),
         }
 
         for (_, tabu) in results.iter_mut() {
             tabu.sort();
         }
 
-        Rc::new(results)
+        results
     }
 }
 

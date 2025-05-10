@@ -164,6 +164,10 @@ pub enum Commands {
         #[arg(long, default_value_t = 0.5)]
         tabu_size_factor: f64,
 
+        /// The number of ejection chain iterations to run when the elite set is popped
+        #[arg(long, default_value_t = 10)]
+        ejection_chain_iterations: usize,
+
         /// Speed type of drones.
         #[arg(long, default_value_t = ConfigType::High)]
         speed_type: ConfigType,
