@@ -184,6 +184,36 @@ impl Solution {
         }
     }
 
+    pub fn verify(&self) {
+        let mut customers = vec![false; CONFIG.customers_count + 1];
+        customers[0] = true;
+
+        for routes in &self.truck_routes {
+            for route in routes {
+                for &c in &route.data().customers {
+                    customers[c] = true;
+                }
+            }
+        }
+
+        for routes in &self.drone_routes {
+            for route in routes {
+                for &c in &route.data().customers {
+                    customers[c] = true;
+                    if !CONFIG.dronable[c] {
+                        panic!("Customer {} is not dronable", c);
+                    }
+                }
+            }
+        }
+
+        for c in 1..CONFIG.customers_count + 1 {
+            if !customers[c] {
+                panic!("Customer {} is not served", c);
+            }
+        }
+    }
+
     pub fn cost(&self) -> f64 {
         self.working_time
             * (1.0
