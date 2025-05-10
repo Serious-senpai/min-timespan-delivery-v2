@@ -715,6 +715,39 @@ impl Solution {
 
             let mut tabu_lists = vec![vec![]; NEIGHBORHOODS.len()];
 
+            fn _record_new_solution(
+                neighbor: &Rc<Solution>,
+                result: &mut Rc<Solution>,
+                last_improved: &mut usize,
+                iteration: usize,
+                elite_set: &mut Vec<Rc<Solution>>,
+            ) {
+                if neighbor.cost() < result.cost() && neighbor.feasible {
+                    *result = neighbor.clone();
+                    *last_improved = iteration;
+
+                    if CONFIG.max_elite_size > 0 {
+                        if elite_set.len() == CONFIG.max_elite_size {
+                            let (idx, _) = elite_set
+                                .iter()
+                                .enumerate()
+                                .min_by_key(|s| s.1.hamming_distance(result))
+                                .unwrap();
+                            elite_set.remove(idx);
+                        }
+
+                        elite_set.push(neighbor.clone());
+                    }
+                }
+            }
+
+            fn _update_violation_solution(s: &Solution) {
+                _update_violation::<0>(s.energy_violation);
+                _update_violation::<1>(s.capacity_violation);
+                _update_violation::<2>(s.waiting_time_violation);
+                _update_violation::<3>(s.fixed_time_violation);
+            }
+
             for iteration in iteration_range {
                 if CONFIG.verbose {
                     eprint!(
@@ -738,23 +771,13 @@ impl Solution {
                     result.cost(),
                 ) {
                     let neighbor = Rc::new(neighbor);
-                    if neighbor.cost() < result.cost() && neighbor.feasible {
-                        result = neighbor.clone();
-                        last_improved = iteration;
-
-                        if CONFIG.max_elite_size > 0 {
-                            if elite_set.len() == CONFIG.max_elite_size {
-                                let (idx, _) = elite_set
-                                    .iter()
-                                    .enumerate()
-                                    .min_by_key(|s| s.1.hamming_distance(&result))
-                                    .unwrap();
-                                elite_set.remove(idx);
-                            }
-
-                            elite_set.push(neighbor.clone());
-                        }
-                    }
+                    _record_new_solution(
+                        &neighbor,
+                        &mut result,
+                        &mut last_improved,
+                        iteration,
+                        &mut elite_set,
+                    );
 
                     current = neighbor;
                 }
@@ -770,26 +793,39 @@ impl Solution {
                         tabu_list.clear();
                     }
 
+                    let mut ejection_chain_tabu_list = vec![]; // Still have to maintain a tabu list to avoid cycles
                     for _ in 0..CONFIG.ejection_chain_iterations {
                         if let Some(neighbor) = Neighborhood::EjectionChain.search(
                             &current,
-                            &mut vec![],
-                            tabu_size,
+                            &mut ejection_chain_tabu_list,
+                            CONFIG.ejection_chain_iterations,
                             result.cost(),
                         ) {
                             current = Rc::new(neighbor);
+                            _record_new_solution(
+                                &current,
+                                &mut result,
+                                &mut last_improved,
+                                iteration,
+                                &mut elite_set,
+                            );
                         }
                     }
+
+                    _update_violation_solution(&current);
+                    logger
+                        .log(
+                            &current,
+                            Neighborhood::EjectionChain,
+                            &ejection_chain_tabu_list,
+                        )
+                        .unwrap();
+                } else {
+                    _update_violation_solution(&current);
+                    logger
+                        .log(&current, neighborhood, &tabu_lists[neighborhood_idx])
+                        .unwrap();
                 }
-
-                _update_violation::<0>(current.energy_violation);
-                _update_violation::<1>(current.capacity_violation);
-                _update_violation::<2>(current.waiting_time_violation);
-                _update_violation::<3>(current.fixed_time_violation);
-
-                logger
-                    .log(&current, neighborhood, &tabu_lists[neighborhood_idx])
-                    .unwrap();
 
                 match CONFIG.strategy {
                     Strategy::Random => {
