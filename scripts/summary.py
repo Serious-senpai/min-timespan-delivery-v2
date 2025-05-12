@@ -244,6 +244,7 @@ if __name__ == "__main__":
                             config["max_elite_size"],
                             config["penalty_exponent"],
                             config["ejection_chain_iterations"],
+                            config["destroy_rate"],
                             config["config"],
                             config["speed_type"],
                             config["range_type"],
