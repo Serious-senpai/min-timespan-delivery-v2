@@ -1,12 +1,12 @@
-use std::collections::{BTreeSet, BinaryHeap};
+use std::collections::{BTreeSet, BinaryHeap, HashSet};
 use std::marker::PhantomData;
 use std::rc::Rc;
 use std::sync::atomic::Ordering;
 use std::sync::LazyLock;
 use std::{cmp, fmt};
 
-use rand::Rng;
-use rand::{rng, seq::SliceRandom};
+use rand::seq::SliceRandom;
+use rand::{rng, Rng};
 use serde::de::{SeqAccess, Visitor};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
@@ -185,8 +185,8 @@ impl Solution {
     }
 
     pub fn verify(&self) {
-        let mut customers = vec![false; CONFIG.customers_count + 1];
-        customers[0] = true;
+        let mut served = vec![false; CONFIG.customers_count + 1];
+        served[0] = true;
 
         for routes in &self.truck_routes {
             if CONFIG.single_truck_route && routes.len() > 1 {
@@ -194,8 +194,17 @@ impl Solution {
             }
 
             for route in routes {
-                for &c in &route.data().customers {
-                    customers[c] = true;
+                let customers = &route.data().customers;
+                if customers.first() != Some(&0) || customers.last() != Some(&0) {
+                    panic!("Invalid truck route {:?}", customers);
+                }
+
+                for &c in customers.iter().skip(1).take(customers.len() - 2) {
+                    if served[c] {
+                        panic!("Customer {} is served more than once", c);
+                    }
+
+                    served[c] = true;
                 }
             }
         }
@@ -203,11 +212,20 @@ impl Solution {
         for routes in &self.drone_routes {
             for route in routes {
                 if CONFIG.single_drone_route && route.data().customers.len() != 3 {
-                    panic!("Drone route {} has more than one customer", route);
+                    panic!("Drone route {:?} has more than one customer", route);
                 }
 
-                for &c in &route.data().customers {
-                    customers[c] = true;
+                let customers = &route.data().customers;
+                if customers.first() != Some(&0) || customers.last() != Some(&0) {
+                    panic!("Invalid drone route {:?}", customers);
+                }
+
+                for &c in customers.iter().skip(1).take(customers.len() - 2) {
+                    if served[c] {
+                        panic!("Customer {} is served more than once", c);
+                    }
+
+                    served[c] = true;
                     if !CONFIG.dronable[c] {
                         panic!("Customer {} is not dronable", c);
                     }
@@ -215,8 +233,8 @@ impl Solution {
             }
         }
 
-        for (c, served) in customers.iter().enumerate() {
-            if !served {
+        for (c, s) in served.iter().enumerate() {
+            if !s {
                 panic!("Customer {} is not served", c);
             }
         }
@@ -685,6 +703,187 @@ impl Solution {
         Solution::new(truck_routes, drone_routes)
     }
 
+    pub fn destroy_and_repair(&self, edge_records: &[Vec<f64>]) -> Solution {
+        // TODO: Implement
+        let mut scores = vec![0.0; CONFIG.customers_count + 1];
+        for routes in &self.truck_routes {
+            for route in routes {
+                let customers = &route.data().customers;
+                for i in 1..customers.len() - 1 {
+                    let c = customers[i];
+                    scores[c] =
+                        edge_records[customers[i - 1]][c] + edge_records[c][customers[i + 1]];
+                }
+            }
+        }
+        for routes in &self.drone_routes {
+            for route in routes {
+                let customers = &route.data().customers;
+                for i in 1..customers.len() - 1 {
+                    let c = customers[i];
+                    scores[c] =
+                        edge_records[customers[i - 1]][c] + edge_records[c][customers[i + 1]];
+                }
+            }
+        }
+
+        let mut ordered = (1..CONFIG.customers_count + 1).collect::<Vec<usize>>();
+        ordered.sort_unstable_by(|&a, &b| scores[a].total_cmp(&scores[b]));
+
+        let mut rng = rng();
+        let destroy_count = (CONFIG.customers_count as f64 * CONFIG.destroy_rate) as usize;
+        let mut to_destroy = HashSet::new();
+        while to_destroy.len() < destroy_count {
+            let index = rng.random_range(0..ordered.len()).pow(2) / ordered.len();
+            to_destroy.insert(ordered[index]);
+        }
+
+        let mut truck_routes = self.truck_routes.clone();
+        let mut drone_routes = self.drone_routes.clone();
+
+        // Destroy phase
+        for routes in &mut truck_routes {
+            let mut i = 0;
+            while i < routes.len() {
+                let mut buffer = vec![];
+                for customer in &routes[i].data().customers {
+                    if !to_destroy.contains(customer) {
+                        buffer.push(*customer);
+                    }
+                }
+
+                if buffer.len() > 2 {
+                    routes[i] = TruckRoute::new(buffer);
+                    i += 1;
+                } else {
+                    routes.swap_remove(i);
+                }
+            }
+        }
+
+        for routes in &mut drone_routes {
+            let mut i = 0;
+            while i < routes.len() {
+                let mut buffer = vec![];
+                for customer in &routes[i].data().customers {
+                    if !to_destroy.contains(customer) {
+                        buffer.push(*customer);
+                    }
+                }
+
+                if buffer.len() > 2 {
+                    routes[i] = DroneRoute::new(buffer);
+                    i += 1;
+                } else {
+                    routes.swap_remove(i);
+                }
+            }
+        }
+
+        // Repair phase
+        let mut to_destroy = to_destroy.into_iter().collect::<Vec<usize>>();
+        to_destroy.shuffle(&mut rng);
+
+        let old_penalty = [
+            penalty_coeff::<0>(),
+            penalty_coeff::<1>(),
+            penalty_coeff::<2>(),
+            penalty_coeff::<3>(),
+        ];
+        for i in 0..4 {
+            PENALTY_COEFF[i].store(1e3, Ordering::Relaxed);
+        }
+
+        for customer in to_destroy {
+            let mut min_cost = f64::MAX;
+            let mut insert = (true, 0, 0, 0);
+
+            for truck in 0..truck_routes.len() {
+                for route in 0..truck_routes[truck].len() {
+                    let recover = truck_routes[truck][route].clone();
+                    let customers = &recover.data().customers;
+                    let mut buffer = customers.clone();
+
+                    buffer.insert(1, customer);
+                    for i in 1..customers.len() - 1 {
+                        truck_routes[truck][route] = TruckRoute::new(buffer.clone());
+
+                        let temp = Self::new(truck_routes, drone_routes);
+                        if temp.cost() < min_cost {
+                            min_cost = temp.cost();
+                            insert = (true, truck, route, i);
+                        }
+
+                        truck_routes = temp.truck_routes;
+                        drone_routes = temp.drone_routes;
+
+                        buffer.swap(i, i + 1);
+                    }
+
+                    // buffer.pop();  // No need to recover, we're throwing `buffer` away anyway.
+                    truck_routes[truck][route] = recover;
+                }
+            }
+
+            if CONFIG.dronable[customer] {
+                for drone in 0..drone_routes.len() {
+                    for route in 0..drone_routes[drone].len() {
+                        let recover = drone_routes[drone][route].clone();
+                        let customers = &recover.data().customers;
+                        let mut buffer = customers.clone();
+
+                        buffer.insert(1, customer);
+                        for i in 1..customers.len() - 1 {
+                            drone_routes[drone][route] = DroneRoute::new(buffer.clone());
+
+                            let temp = Self::new(truck_routes.clone(), drone_routes.clone());
+                            if temp.cost() < min_cost {
+                                min_cost = temp.cost();
+                                insert = (false, drone, route, i);
+                            }
+
+                            truck_routes = temp.truck_routes;
+                            drone_routes = temp.drone_routes;
+
+                            buffer.swap(i, i + 1);
+                        }
+
+                        drone_routes[drone][route] = recover;
+                    }
+                }
+            }
+
+            fn _insert<T>(
+                routes: &mut [Vec<Rc<T>>],
+                customer: usize,
+                vehicle: usize,
+                route: usize,
+                index: usize,
+            ) where
+                T: Route,
+            {
+                let mut buffer = routes[vehicle][route].data().customers.clone();
+                buffer.insert(index, customer);
+                routes[vehicle][route] = T::new(buffer);
+            }
+
+            let (is_truck, vehicle, route, index) = insert;
+            if is_truck {
+                _insert(&mut truck_routes, customer, vehicle, route, index);
+            } else {
+                _insert(&mut drone_routes, customer, vehicle, route, index);
+            }
+        }
+
+        for i in 0..4 {
+            PENALTY_COEFF[i].store(old_penalty[i], Ordering::Relaxed);
+        }
+
+        let s = Self::new(truck_routes, drone_routes);
+        // s.verify();
+        s
+    }
+
     pub fn tabu_search(root: Solution, logger: &mut Logger) -> Solution {
         let mut total_vehicle = 0;
         for truck in &root.truck_routes {
@@ -709,7 +908,8 @@ impl Solution {
 
         if !CONFIG.dry_run {
             let mut current = result.clone();
-
+            let mut edge_records =
+                vec![vec![f64::MAX; CONFIG.customers_count + 1]; CONFIG.customers_count + 1];
             let mut elite_set = vec![];
             elite_set.push(result.clone());
 
@@ -728,11 +928,22 @@ impl Solution {
                 result: &mut Rc<Solution>,
                 last_improved: &mut usize,
                 iteration: usize,
+                edge_records: &mut [Vec<f64>],
                 elite_set: &mut Vec<Rc<Solution>>,
             ) {
                 if neighbor.cost() < result.cost() && neighbor.feasible {
                     *result = neighbor.clone();
                     *last_improved = iteration;
+
+                    for routes in &neighbor.truck_routes {
+                        for route in routes {
+                            let customers = &route.data().customers;
+                            for i in 0..customers.len() - 1 {
+                                let r = &mut edge_records[customers[i]][customers[i + 1]];
+                                *r = r.min(neighbor.working_time);
+                            }
+                        }
+                    }
 
                     if CONFIG.max_elite_size > 0 {
                         if elite_set.len() == CONFIG.max_elite_size {
@@ -784,6 +995,7 @@ impl Solution {
                         &mut result,
                         &mut last_improved,
                         iteration,
+                        &mut edge_records,
                         &mut elite_set,
                     );
 
@@ -799,7 +1011,7 @@ impl Solution {
                     }
 
                     let i = rng.random_range(0..elite_set.len());
-                    current = elite_set.swap_remove(i);
+                    current = Rc::new(elite_set.swap_remove(i).destroy_and_repair(&edge_records));
                     for tabu_list in &mut tabu_lists {
                         tabu_list.clear();
                     }
@@ -820,19 +1032,20 @@ impl Solution {
                                 &mut result,
                                 &mut last_improved,
                                 iteration,
+                                &mut edge_records,
                                 &mut elite_set,
                             );
                         }
-                    }
 
-                    _update_violation_solution(&current);
-                    logger
-                        .log(
-                            &current,
-                            Neighborhood::EjectionChain,
-                            &ejection_chain_tabu_list,
-                        )
-                        .unwrap();
+                        _update_violation_solution(&current);
+                        logger
+                            .log(
+                                &current,
+                                Neighborhood::EjectionChain,
+                                &ejection_chain_tabu_list,
+                            )
+                            .unwrap();
+                    }
                 } else {
                     _update_violation_solution(&current);
                     logger

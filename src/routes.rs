@@ -38,7 +38,7 @@ impl _RouteData {
     }
 }
 
-pub trait Route: fmt::Display + Sized {
+pub trait Route: fmt::Debug + Sized {
     fn new(customers: Vec<usize>) -> Rc<Self>;
     fn single(customer: usize) -> Rc<Self> {
         Self::new(vec![0, customer, 0])
@@ -584,7 +584,6 @@ pub trait Route: fmt::Display + Sized {
     }
 }
 
-#[derive(Debug)]
 pub struct TruckRoute {
     _data: _RouteData,
     _working_time: f64,
@@ -592,7 +591,7 @@ pub struct TruckRoute {
     _waiting_time_violation: f64,
 }
 
-impl fmt::Display for TruckRoute {
+impl fmt::Debug for TruckRoute {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{:?}", self.data().customers)
     }
@@ -657,7 +656,6 @@ impl TruckRoute {
     }
 }
 
-#[derive(Debug)]
 pub struct DroneRoute {
     _data: _RouteData,
     _working_time: f64,
@@ -668,7 +666,7 @@ pub struct DroneRoute {
     pub fixed_time_violation: f64,
 }
 
-impl fmt::Display for DroneRoute {
+impl fmt::Debug for DroneRoute {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{:?}", self.data().customers)
     }

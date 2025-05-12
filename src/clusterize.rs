@@ -1,4 +1,5 @@
-use std::{cmp::min, collections::HashMap};
+use std::cmp::min;
+use std::collections::HashMap;
 
 use crate::config::CONFIG;
 

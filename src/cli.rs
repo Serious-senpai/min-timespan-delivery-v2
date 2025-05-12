@@ -168,6 +168,11 @@ pub enum Commands {
         #[arg(long, default_value_t = 0)]
         ejection_chain_iterations: usize,
 
+        /// The destroy rate during destroy-and-repair procedure when the elite set is popped,
+        /// but before ejection-chain is executed (set to 0 to disable destroy-and-repair)
+        #[arg(long, default_value_t = 0.2)]
+        destroy_rate: f64,
+
         /// Speed type of drones.
         #[arg(long, default_value_t = ConfigType::High)]
         speed_type: ConfigType,
