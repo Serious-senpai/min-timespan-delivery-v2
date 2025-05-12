@@ -880,7 +880,7 @@ impl Solution {
         }
 
         // s.verify();
-        Self::new(truck_routes, drone_routes);
+        Self::new(truck_routes, drone_routes)
     }
 
     pub fn tabu_search(root: Solution, logger: &mut Logger) -> Solution {
