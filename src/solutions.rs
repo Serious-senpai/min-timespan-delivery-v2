@@ -790,7 +790,10 @@ impl Solution {
                     current = neighbor;
                 }
 
-                if iteration != last_improved && (iteration - last_improved) % reset_after == 0 {
+                let reset =
+                    iteration != last_improved && (iteration - last_improved) % reset_after == 0;
+
+                if reset {
                     if elite_set.is_empty() {
                         break;
                     }
@@ -800,13 +803,15 @@ impl Solution {
                     for tabu_list in &mut tabu_lists {
                         tabu_list.clear();
                     }
+                }
 
+                if reset && CONFIG.ejection_chain_iterations > 0 {
                     let mut ejection_chain_tabu_list = vec![]; // Still have to maintain a tabu list to avoid cycles
                     for _ in 0..CONFIG.ejection_chain_iterations {
                         if let Some(neighbor) = Neighborhood::EjectionChain.search(
                             &current,
                             &mut ejection_chain_tabu_list,
-                            CONFIG.ejection_chain_iterations,
+                            CONFIG.ejection_chain_iterations + 1,
                             result.cost(),
                         ) {
                             current = Rc::new(neighbor);

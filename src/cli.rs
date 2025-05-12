@@ -165,7 +165,7 @@ pub enum Commands {
         tabu_size_factor: f64,
 
         /// The number of ejection chain iterations to run when the elite set is popped
-        #[arg(long, default_value_t = 10)]
+        #[arg(long, default_value_t = 0)]
         ejection_chain_iterations: usize,
 
         /// Speed type of drones.
