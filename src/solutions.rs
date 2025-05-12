@@ -879,9 +879,8 @@ impl Solution {
             PENALTY_COEFF[i].store(old_penalty[i], Ordering::Relaxed);
         }
 
-        let s = Self::new(truck_routes, drone_routes);
         // s.verify();
-        s
+        Self::new(truck_routes, drone_routes);
     }
 
     pub fn tabu_search(root: Solution, logger: &mut Logger) -> Solution {
