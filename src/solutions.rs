@@ -796,9 +796,22 @@ impl Solution {
 
         for customer in to_destroy {
             let mut min_cost = f64::MAX;
-            let mut insert = (true, 0, 0, 0);
+            let mut insert = (true, true, 0, 0, 0);
 
             for truck in 0..truck_routes.len() {
+                // Try appending
+                truck_routes[truck].push(TruckRoute::single(customer));
+                let temp = Self::new(truck_routes, drone_routes);
+                if temp.cost() < min_cost {
+                    min_cost = temp.cost();
+                    insert = (true, true, truck, 0, 0);
+                }
+
+                truck_routes = temp.truck_routes;
+                drone_routes = temp.drone_routes;
+                truck_routes[truck].pop();
+
+                // Try inserting
                 for route in 0..truck_routes[truck].len() {
                     let recover = truck_routes[truck][route].clone();
                     let customers = &recover.data().customers;
@@ -811,7 +824,7 @@ impl Solution {
                         let temp = Self::new(truck_routes, drone_routes);
                         if temp.cost() < min_cost {
                             min_cost = temp.cost();
-                            insert = (true, truck, route, i);
+                            insert = (true, false, truck, route, i);
                         }
 
                         truck_routes = temp.truck_routes;
@@ -827,6 +840,18 @@ impl Solution {
 
             if CONFIG.dronable[customer] {
                 for drone in 0..drone_routes.len() {
+                    // Try appending
+                    drone_routes[drone].push(DroneRoute::single(customer));
+                    let temp = Self::new(truck_routes.clone(), drone_routes.clone());
+                    if temp.cost() < min_cost {
+                        min_cost = temp.cost();
+                        insert = (false, true, drone, 0, 0);
+                    }
+                    truck_routes = temp.truck_routes;
+                    drone_routes = temp.drone_routes;
+                    drone_routes[drone].pop();
+
+                    // Try inserting
                     for route in 0..drone_routes[drone].len() {
                         let recover = drone_routes[drone][route].clone();
                         let customers = &recover.data().customers;
@@ -839,7 +864,7 @@ impl Solution {
                             let temp = Self::new(truck_routes.clone(), drone_routes.clone());
                             if temp.cost() < min_cost {
                                 min_cost = temp.cost();
-                                insert = (false, drone, route, i);
+                                insert = (false, false, drone, route, i);
                             }
 
                             truck_routes = temp.truck_routes;
@@ -856,22 +881,27 @@ impl Solution {
             fn _insert<T>(
                 routes: &mut [Vec<Rc<T>>],
                 customer: usize,
+                append: bool,
                 vehicle: usize,
                 route: usize,
                 index: usize,
             ) where
                 T: Route,
             {
-                let mut buffer = routes[vehicle][route].data().customers.clone();
-                buffer.insert(index, customer);
-                routes[vehicle][route] = T::new(buffer);
+                if append {
+                    routes[vehicle].push(T::single(customer));
+                } else {
+                    let mut buffer = routes[vehicle][route].data().customers.clone();
+                    buffer.insert(index, customer);
+                    routes[vehicle][route] = T::new(buffer);
+                }
             }
 
-            let (is_truck, vehicle, route, index) = insert;
+            let (is_truck, append, vehicle, route, index) = insert;
             if is_truck {
-                _insert(&mut truck_routes, customer, vehicle, route, index);
+                _insert(&mut truck_routes, customer, append, vehicle, route, index);
             } else {
-                _insert(&mut drone_routes, customer, vehicle, route, index);
+                _insert(&mut drone_routes, customer, append, vehicle, route, index);
             }
         }
 
@@ -879,8 +909,8 @@ impl Solution {
             PENALTY_COEFF[i].store(old_penalty[i], Ordering::Relaxed);
         }
 
-        // s.verify();
         Self::new(truck_routes, drone_routes)
+        // s.verify();
     }
 
     pub fn tabu_search(root: Solution, logger: &mut Logger) -> Solution {
