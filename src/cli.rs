@@ -170,7 +170,7 @@ pub enum Commands {
 
         /// The destroy rate during destroy-and-repair procedure when the elite set is popped,
         /// but before ejection-chain is executed (set to 0 to disable destroy-and-repair)
-        #[arg(long, default_value_t = 0.2)]
+        #[arg(long, default_value_t = 0.05)]
         destroy_rate: f64,
 
         /// Speed type of drones.
