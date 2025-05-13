@@ -165,12 +165,12 @@ pub enum Commands {
         tabu_size_factor: f64,
 
         /// The number of ejection chain iterations to run when the elite set is popped
-        #[arg(long, default_value_t = 0)]
+        #[arg(long, default_value_t = 1)]
         ejection_chain_iterations: usize,
 
         /// The destroy rate during destroy-and-repair procedure when the elite set is popped,
         /// but before ejection-chain is executed (set to 0 to disable destroy-and-repair)
-        #[arg(long, default_value_t = 0.05)]
+        #[arg(long, default_value_t = 0.1)]
         destroy_rate: f64,
 
         /// Speed type of drones.
@@ -210,7 +210,7 @@ pub enum Commands {
         fix_iteration: Option<usize>,
 
         /// The number of non-improved iterations before resetting the current solution = a2 * base
-        #[arg(long, default_value_t = 40.0)]
+        #[arg(long, default_value_t = 50.0)]
         reset_after_factor: f64,
 
         /// The maximum size of the elite set = a3
