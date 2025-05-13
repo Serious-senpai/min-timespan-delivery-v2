@@ -210,7 +210,7 @@ pub enum Commands {
         fix_iteration: Option<usize>,
 
         /// The number of non-improved iterations before resetting the current solution = a2 * base
-        #[arg(long, default_value_t = 50.0)]
+        #[arg(long, default_value_t = 80.0)]
         reset_after_factor: f64,
 
         /// The maximum size of the elite set = a3
