@@ -926,10 +926,7 @@ impl Solution {
         let reset_after = if CONFIG.fix_iteration.is_some() {
             i64::MAX as usize // usize::MAX cannot be stored in SQLite
         } else {
-            std::cmp::min(
-                (CONFIG.reset_after_factor * base_hyperparameter) as usize,
-                500,
-            )
+            (CONFIG.reset_after_factor * base_hyperparameter) as usize
         };
 
         let mut result = Rc::new(root);
