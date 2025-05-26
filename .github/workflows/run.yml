@@ -46,7 +46,7 @@ jobs:
       fail-fast: false
       matrix:
         max-elite-size: [5, 10, 15]
-        reset-after-factor: [50, 100, 200]
+        reset-after-factor: [50, 100, 150, 200]
         steps: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 
     steps:
@@ -88,7 +88,7 @@ jobs:
             echo "RUN #$i"
             for path in $(find problems/data/*)
             do
-              execute "./min-timespan-delivery run $path --reset-after-factor ${{ matrix.packed.reset-after-factor }} --max-elite-size ${{ matrix.packed.max-elite-size }} --ejection-chain-iterations ${{ matrix.ejection-chain-iterations }} --destroy-rate ${{ matrix.destroy-rate }} --disable-logging --extra ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+              execute "./min-timespan-delivery run $path --reset-after-factor ${{ matrix.reset-after-factor }} --max-elite-size ${{ matrix.max-elite-size }} --disable-logging --extra ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
             done
           done
 
@@ -98,7 +98,7 @@ jobs:
         uses: actions/upload-artifact@v4
         if: ${{ always() }}
         with:
-          name: output-${{ matrix.ejection-chain-iterations }}-${{ matrix.destroy-rate }}-${{ matrix.packed.reset-after-factor }}-${{ matrix.packed.max-elite-size }}-${{ matrix.steps }}
+          name: output-${{ matrix.reset-after-factor }}-${{ matrix.max-elite-size }}-${{ matrix.steps }}
           path: outputs/*
 
   summary:
