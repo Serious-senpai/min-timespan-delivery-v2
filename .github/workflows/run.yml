@@ -45,15 +45,9 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        ejection-chain-iterations: [0, 1, 2, 3, 4]
-        destroy-rate: [0, 0.05, 0.1, 0.15, 0.2]
-        packed: [
-            {max-elite-size: 5, reset-after-factor: 100},
-            {max-elite-size: 5, reset-after-factor: 200},
-            {max-elite-size: 10, reset-after-factor: 100},
-            {max-elite-size: 10, reset-after-factor: 50},
-        ]
-        steps: [0, 1]
+        max-elite-size: [5, 10, 15]
+        reset-after-factor: [50, 100, 200]
+        steps: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 
     steps:
       - name: Checkout repository
@@ -74,8 +68,8 @@ jobs:
         run: |
           exitcode=0
           set +e
-          let begin=5*${{ matrix.steps }}+1
-          let end=$begin+4
+          let begin=1*${{ matrix.steps }}+1
+          let end=$begin+0
 
           execute() {
             command=$1
