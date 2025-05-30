@@ -88,7 +88,7 @@ jobs:
             echo "RUN #$i"
             for path in $(find problems/data/*)
             do
-              execute "./min-timespan-delivery run $path --reset-after-factor ${{ matrix.reset-after-factor }} --max-elite-size ${{ matrix.max-elite-size }} --disable-logging --extra ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+              execute "./min-timespan-delivery run $path --ejection-chain-iterations 0 --destroy-rate 0 --reset-after-factor ${{ matrix.reset-after-factor }} --max-elite-size ${{ matrix.max-elite-size }} --disable-logging --extra ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
             done
           done
 
