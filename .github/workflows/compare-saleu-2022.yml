@@ -87,7 +87,7 @@ jobs:
             for i in $(seq $begin $end)
             do
               echo "RUN #$i"
-              execute "./min-timespan-delivery $arguments --disable-logging --extra ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+              execute "./min-timespan-delivery $arguments --reset-after-factor 200 --max-elite-size 15 --ejection-chain-iterations 10 --disable-logging --extra ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
             done
           done
 
