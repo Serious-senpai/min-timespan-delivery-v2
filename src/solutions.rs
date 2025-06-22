@@ -19,11 +19,11 @@ use crate::routes::{DroneRoute, Route, TruckRoute};
 
 fn _deserialize_routes<'de, R, D>(deserializer: D) -> Result<Vec<Vec<Rc<R>>>, D::Error>
 where
-    R: fmt::Debug + Route,
+    R: Route,
     D: Deserializer<'de>,
 {
     struct RouteVisitor<R>(PhantomData<R>);
-    impl<'de, R: fmt::Debug + Route> Visitor<'de> for RouteVisitor<R> {
+    impl<'de, R: Route> Visitor<'de> for RouteVisitor<R> {
         type Value = Vec<Vec<Rc<R>>>;
 
         fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {

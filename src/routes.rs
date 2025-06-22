@@ -38,11 +38,24 @@ impl _RouteData {
     }
 }
 
-pub trait Route: fmt::Debug + Sized {
+pub trait Route: Sized {
+    const ID: u8;
+
     fn new(customers: Vec<usize>) -> Rc<Self>;
     fn single(customer: usize) -> Rc<Self> {
         Self::new(vec![0, customer, 0])
     }
+    fn get_correct_route<'a>(
+        truck_routes: &'a Vec<Vec<Rc<TruckRoute>>>,
+        drone_routes: &'a Vec<Vec<Rc<DroneRoute>>>,
+    ) -> &'a Vec<Vec<Rc<Self>>>;
+    fn get_correct_route_mut<'a>(
+        truck_routes: &'a mut Vec<Vec<Rc<TruckRoute>>>,
+        drone_routes: &'a mut Vec<Vec<Rc<DroneRoute>>>,
+    ) -> &'a mut Vec<Vec<Rc<Self>>>;
+
+    fn single_customer() -> bool;
+    fn single_route() -> bool;
 
     fn data(&self) -> &_RouteData;
     fn working_time(&self) -> f64;
@@ -598,11 +611,35 @@ impl fmt::Debug for TruckRoute {
 }
 
 impl Route for TruckRoute {
+    const ID: u8 = 0;
+
     fn new(customers: Vec<usize>) -> Rc<TruckRoute> {
         Rc::new(TruckRoute::_construct(_RouteData::_construct(
             customers.clone(),
             &CONFIG.truck_distances,
         )))
+    }
+
+    fn get_correct_route<'a>(
+        truck_routes: &'a Vec<Vec<Rc<TruckRoute>>>,
+        _: &'a Vec<Vec<Rc<DroneRoute>>>,
+    ) -> &'a Vec<Vec<Rc<Self>>> {
+        truck_routes
+    }
+
+    fn get_correct_route_mut<'a>(
+        truck_routes: &'a mut Vec<Vec<Rc<TruckRoute>>>,
+        _: &'a mut Vec<Vec<Rc<DroneRoute>>>,
+    ) -> &'a mut Vec<Vec<Rc<Self>>> {
+        truck_routes
+    }
+
+    fn single_customer() -> bool {
+        false
+    }
+
+    fn single_route() -> bool {
+        CONFIG.single_truck_route
     }
 
     fn data(&self) -> &_RouteData {
@@ -673,11 +710,35 @@ impl fmt::Debug for DroneRoute {
 }
 
 impl Route for DroneRoute {
+    const ID: u8 = 1;
+
     fn new(customers: Vec<usize>) -> Rc<DroneRoute> {
         Rc::new(DroneRoute::_construct(_RouteData::_construct(
             customers.clone(),
             &CONFIG.drone_distances,
         )))
+    }
+
+    fn get_correct_route<'a>(
+        _: &'a Vec<Vec<Rc<TruckRoute>>>,
+        drone_routes: &'a Vec<Vec<Rc<DroneRoute>>>,
+    ) -> &'a Vec<Vec<Rc<Self>>> {
+        drone_routes
+    }
+
+    fn get_correct_route_mut<'a>(
+        _: &'a mut Vec<Vec<Rc<TruckRoute>>>,
+        drone_routes: &'a mut Vec<Vec<Rc<DroneRoute>>>,
+    ) -> &'a mut Vec<Vec<Rc<Self>>> {
+        drone_routes
+    }
+
+    fn single_customer() -> bool {
+        CONFIG.single_drone_route
+    }
+
+    fn single_route() -> bool {
+        false
     }
 
     fn data(&self) -> &_RouteData {

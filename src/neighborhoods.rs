@@ -1,6 +1,6 @@
 use std::fmt::Display;
+use std::rc::Rc;
 
-use crate::config::CONFIG;
 use crate::routes::{DroneRoute, Route, TruckRoute};
 use crate::solutions::Solution;
 
@@ -33,6 +33,23 @@ impl Display for Neighborhood {
     }
 }
 
+/// Opposite of `Vec::swap_remove` - push an element to the end of the vector
+/// and swap it with the element at the given index.
+fn _swap_push<T>(vec: &mut Vec<T>, index: usize, element: T) {
+    let l = vec.len();
+    vec.push(element);
+    vec.swap(index, l);
+}
+
+struct _IterationState<'a> {
+    pub original: &'a Solution,
+    pub tabu_list: &'a [Vec<usize>],
+    pub aspiration_cost: &'a mut f64,
+    pub min_cost: &'a mut f64,
+    pub require_feasible: &'a mut bool,
+    pub result: &'a mut (Solution, Vec<usize>),
+}
+
 impl Neighborhood {
     fn _find_decisive_vehicle(solution: &Solution) -> (usize, bool) {
         let mut max_time = f64::MIN;
@@ -58,30 +75,506 @@ impl Neighborhood {
         (vehicle, is_truck)
     }
 
-    fn _internal_update(
-        tabu_list: &[Vec<usize>],
-        aspiration_cost: &mut f64,
-        min_cost: &mut f64,
-        require_feasible: &mut bool,
-        result: &mut (Solution, Vec<usize>),
-        solution: &Solution,
-        tabu: &Vec<usize>,
-    ) {
+    fn _internal_update(state: &mut _IterationState, solution: &Solution, tabu: &Vec<usize>) {
         let feasible = solution.feasible;
-        if *require_feasible && !feasible {
+        if *state.require_feasible && !feasible {
             return;
         }
 
         let cost = solution.cost();
-        let new_best_global_solution = cost < *aspiration_cost && feasible;
-        if new_best_global_solution || (!tabu_list.contains(tabu) && cost < *min_cost) {
-            *min_cost = cost;
-            *result = (solution.clone(), tabu.clone());
+        let new_best_global_solution = cost < *state.aspiration_cost && feasible;
+        if new_best_global_solution || (!state.tabu_list.contains(tabu) && cost < *state.min_cost) {
+            *state.min_cost = cost;
+            *state.result = (solution.clone(), tabu.clone());
             if new_best_global_solution {
-                *aspiration_cost = cost;
-                *require_feasible = true;
+                *state.aspiration_cost = cost;
+                *state.require_feasible = true;
             }
         }
+    }
+
+    fn _inter_route_internal<RI>(
+        self,
+        state: &mut _IterationState,
+        mut truck_cloned: Vec<Vec<Rc<TruckRoute>>>,
+        mut drone_cloned: Vec<Vec<Rc<DroneRoute>>>,
+        vehicle_i: usize,
+    ) -> (Vec<Vec<Rc<TruckRoute>>>, Vec<Vec<Rc<DroneRoute>>>)
+    where
+        RI: Route,
+    {
+        fn iterate_route_j<RI, RJ>(
+            neighborhood: Neighborhood,
+            state: &mut _IterationState,
+            mut truck_cloned: Vec<Vec<Rc<TruckRoute>>>,
+            mut drone_cloned: Vec<Vec<Rc<DroneRoute>>>,
+            vehicle_i: usize,
+            route_idx_i: usize,
+            route_i: &Rc<RI>,
+        ) -> (Vec<Vec<Rc<TruckRoute>>>, Vec<Vec<Rc<DroneRoute>>>)
+        where
+            RI: Route,
+            RJ: Route,
+        {
+            let original_routes_i =
+                RI::get_correct_route(&state.original.truck_routes, &state.original.drone_routes);
+            let original_routes_j =
+                RJ::get_correct_route(&state.original.truck_routes, &state.original.drone_routes);
+
+            let routes_i = &original_routes_i[vehicle_i];
+            for (vehicle_j, routes_j) in original_routes_j.iter().enumerate() {
+                for (route_idx_j, route_j) in routes_j.iter().enumerate() {
+                    // Dirty trick to compare 2 routes (because each customer can only be served exactly once)
+                    if route_i.data().customers[1] == route_j.data().customers[1] {
+                        continue;
+                    }
+
+                    let mut neighbors = route_i.inter_route(route_j.clone(), neighborhood);
+                    let asymmetric = neighborhood == Neighborhood::Move10
+                        || neighborhood == Neighborhood::Move20
+                        || neighborhood == Neighborhood::Move21;
+                    if asymmetric {
+                        neighbors.extend(
+                            route_j
+                                .inter_route(route_i.clone(), neighborhood)
+                                .into_iter()
+                                .map(|t| (t.1, t.0, t.2)),
+                        );
+                    }
+
+                    for (new_route_i, new_route_j, tabu) in neighbors {
+                        if let Some(ref new_route_i) = new_route_i {
+                            if RI::single_customer() && new_route_i.data().customers.len() != 3 {
+                                continue;
+                            }
+                        }
+                        if let Some(ref new_route_j) = new_route_j {
+                            if RJ::single_customer() && new_route_j.data().customers.len() != 3 {
+                                continue;
+                            }
+                        }
+
+                        // Temporary assign new routes.
+                        // Make use of `swap_remove` due to its O(1) complexity and the route order
+                        // of each vehicle is not important.
+                        let mut route_idx_j_after_swap_remove = route_idx_j;
+
+                        // Wrap code blocks to drop the mutable references afterwards
+                        {
+                            let cloned_routes_i =
+                                RI::get_correct_route_mut(&mut truck_cloned, &mut drone_cloned);
+                            match &new_route_i {
+                                Some(new_route_i) => {
+                                    cloned_routes_i[vehicle_i][route_idx_i] = new_route_i.clone();
+                                }
+                                None => {
+                                    cloned_routes_i[vehicle_i].swap_remove(route_idx_i);
+                                    if std::ptr::addr_eq(routes_i, routes_j) /* same vehicle */ && route_idx_j == routes_j.len() - 1
+                                    {
+                                        route_idx_j_after_swap_remove = route_idx_i;
+                                    }
+                                }
+                            }
+                        }
+
+                        {
+                            let cloned_routes_j =
+                                RJ::get_correct_route_mut(&mut truck_cloned, &mut drone_cloned);
+                            match &new_route_j {
+                                Some(new_route_j) => {
+                                    cloned_routes_j[vehicle_j][route_idx_j_after_swap_remove] =
+                                        new_route_j.clone();
+                                }
+                                None => {
+                                    cloned_routes_j[vehicle_j]
+                                        .swap_remove(route_idx_j_after_swap_remove);
+                                }
+                            }
+                        }
+
+                        // Construct the new solution: move `truck_cloned` and `drone_cloned` to the temp solution
+                        // and get them back later during restoration
+                        let s = Solution::new(truck_cloned, drone_cloned);
+
+                        Neighborhood::_internal_update(state, &s, &tabu);
+
+                        // Restore old routes
+                        truck_cloned = s.truck_routes;
+                        drone_cloned = s.drone_routes;
+
+                        {
+                            let cloned_routes_j =
+                                RJ::get_correct_route_mut(&mut truck_cloned, &mut drone_cloned);
+                            match new_route_j {
+                                Some(_) => {
+                                    cloned_routes_j[vehicle_j][route_idx_j_after_swap_remove] =
+                                        route_j.clone();
+                                }
+                                None => {
+                                    _swap_push(
+                                        &mut cloned_routes_j[vehicle_j],
+                                        route_idx_j_after_swap_remove,
+                                        route_j.clone(),
+                                    );
+                                }
+                            }
+                        }
+
+                        {
+                            let cloned_routes_i =
+                                RI::get_correct_route_mut(&mut truck_cloned, &mut drone_cloned);
+                            match new_route_i {
+                                Some(_) => {
+                                    cloned_routes_i[vehicle_i][route_idx_i] = route_i.clone();
+                                }
+                                None => {
+                                    _swap_push(
+                                        &mut cloned_routes_i[vehicle_i],
+                                        route_idx_i,
+                                        route_i.clone(),
+                                    );
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            (truck_cloned, drone_cloned)
+        }
+
+        let original_routes_i =
+            RI::get_correct_route(&state.original.truck_routes, &state.original.drone_routes);
+        for (route_idx_i, route_i) in original_routes_i[vehicle_i].iter().enumerate() {
+            (truck_cloned, drone_cloned) = iterate_route_j::<RI, TruckRoute>(
+                self,
+                state,
+                truck_cloned,
+                drone_cloned,
+                vehicle_i,
+                route_idx_i,
+                route_i,
+            );
+            (truck_cloned, drone_cloned) = iterate_route_j::<RI, DroneRoute>(
+                self,
+                state,
+                truck_cloned,
+                drone_cloned,
+                vehicle_i,
+                route_idx_i,
+                route_i,
+            );
+        }
+
+        (truck_cloned, drone_cloned)
+    }
+
+    fn _inter_route_extract_internal<RI>(
+        self,
+        state: &mut _IterationState,
+        mut truck_cloned: Vec<Vec<Rc<TruckRoute>>>,
+        mut drone_cloned: Vec<Vec<Rc<DroneRoute>>>,
+        vehicle_i: usize,
+    ) -> (Vec<Vec<Rc<TruckRoute>>>, Vec<Vec<Rc<DroneRoute>>>)
+    where
+        RI: Route,
+    {
+        fn iterate_route_j_append<RI, RJ>(
+            neighborhood: Neighborhood,
+            state: &mut _IterationState,
+            mut truck_cloned: Vec<Vec<Rc<TruckRoute>>>,
+            mut drone_cloned: Vec<Vec<Rc<DroneRoute>>>,
+            vehicle_i: usize,
+            route_idx_i: usize,
+            route_i: &Rc<RI>,
+        ) -> (Vec<Vec<Rc<TruckRoute>>>, Vec<Vec<Rc<DroneRoute>>>)
+        where
+            RI: Route,
+            RJ: Route,
+        {
+            let original_routes_j =
+                RJ::get_correct_route(&state.original.truck_routes, &state.original.drone_routes);
+
+            for (new_route_i, new_route_j, tabu) in route_i.inter_route_extract::<RJ>(neighborhood)
+            {
+                if RJ::single_customer() && new_route_j.data().customers.len() != 3 {
+                    continue;
+                }
+
+                {
+                    let cloned_routes_i =
+                        RI::get_correct_route_mut(&mut truck_cloned, &mut drone_cloned);
+                    cloned_routes_i[vehicle_i][route_idx_i] = new_route_i;
+                }
+
+                for vehicle_j in 0..original_routes_j.len() {
+                    if RJ::single_route() && !original_routes_j[vehicle_j].is_empty() {
+                        continue;
+                    }
+
+                    {
+                        let cloned_routes_j =
+                            RJ::get_correct_route_mut(&mut truck_cloned, &mut drone_cloned);
+                        cloned_routes_j[vehicle_j].push(new_route_j.clone());
+                    }
+
+                    let s = Solution::new(truck_cloned, drone_cloned);
+
+                    Neighborhood::_internal_update(state, &s, &tabu);
+
+                    // Restore old routes
+                    truck_cloned = s.truck_routes;
+                    drone_cloned = s.drone_routes;
+
+                    let cloned_routes_j =
+                        RJ::get_correct_route_mut(&mut truck_cloned, &mut drone_cloned);
+                    cloned_routes_j[vehicle_j].pop();
+                }
+
+                let cloned_routes_i =
+                    RI::get_correct_route_mut(&mut truck_cloned, &mut drone_cloned);
+                cloned_routes_i[vehicle_i][route_idx_i] = route_i.clone();
+            }
+
+            (truck_cloned, drone_cloned)
+        }
+
+        let original_routes_i =
+            RI::get_correct_route(&state.original.truck_routes, &state.original.drone_routes);
+        for (route_idx_i, route_i) in original_routes_i[vehicle_i].iter().enumerate() {
+            (truck_cloned, drone_cloned) = iterate_route_j_append::<RI, TruckRoute>(
+                self,
+                state,
+                truck_cloned,
+                drone_cloned,
+                vehicle_i,
+                route_idx_i,
+                route_i,
+            );
+            (truck_cloned, drone_cloned) = iterate_route_j_append::<RI, DroneRoute>(
+                self,
+                state,
+                truck_cloned,
+                drone_cloned,
+                vehicle_i,
+                route_idx_i,
+                route_i,
+            );
+        }
+
+        (truck_cloned, drone_cloned)
+    }
+
+    fn _ejection_chain_internal<DR, RI>(
+        self,
+        state: &mut _IterationState,
+        mut truck_cloned: Vec<Vec<Rc<TruckRoute>>>,
+        mut drone_cloned: Vec<Vec<Rc<DroneRoute>>>,
+        decisive: usize,
+    ) -> (Vec<Vec<Rc<TruckRoute>>>, Vec<Vec<Rc<DroneRoute>>>)
+    where
+        DR: Route,
+        RI: Route,
+    {
+        fn iterate_route_j<DR, RI, RJ>(
+            neighborhood: Neighborhood,
+            state: &mut _IterationState,
+            mut truck_cloned: Vec<Vec<Rc<TruckRoute>>>,
+            mut drone_cloned: Vec<Vec<Rc<DroneRoute>>>,
+            decisive: usize,
+            vehicle_i: usize,
+            route_idx_i: usize,
+            route_i: &Rc<RI>,
+        ) -> (Vec<Vec<Rc<TruckRoute>>>, Vec<Vec<Rc<DroneRoute>>>)
+        where
+            DR: Route,
+            RI: Route,
+            RJ: Route,
+        {
+            fn iterate_route_k<RI, RJ, RK>(
+                neighborhood: Neighborhood,
+                state: &mut _IterationState,
+                mut truck_cloned: Vec<Vec<Rc<TruckRoute>>>,
+                mut drone_cloned: Vec<Vec<Rc<DroneRoute>>>,
+                vehicle_i: usize,
+                route_idx_i: usize,
+                route_i: &Rc<RI>,
+                vehicle_j: usize,
+                route_idx_j: usize,
+                route_j: &Rc<RJ>,
+            ) -> (Vec<Vec<Rc<TruckRoute>>>, Vec<Vec<Rc<DroneRoute>>>)
+            where
+                RI: Route,
+                RJ: Route,
+                RK: Route,
+            {
+                let original_routes_k = RK::get_correct_route(
+                    &state.original.truck_routes,
+                    &state.original.drone_routes,
+                );
+
+                for (vehicle_k, routes_k) in original_routes_k.iter().enumerate() {
+                    for (route_idx_k, route_k) in routes_k.iter().enumerate() {
+                        if route_i.data().customers[1] == route_k.data().customers[1] {
+                            continue;
+                        }
+
+                        if route_j.data().customers[1] == route_k.data().customers[1] {
+                            continue;
+                        }
+
+                        let neighbors =
+                            route_i.inter_route_3(route_j.clone(), route_k.clone(), neighborhood);
+                        // No need for inter_route_3(k, j) because we are already looping through all possible pairs
+                        for (new_route_i, new_route_j, new_route_k, tabu) in neighbors {
+                            if RK::single_customer() && new_route_k.data().customers.len() != 3 {
+                                continue;
+                            }
+
+                            // Temporary assign new routes.
+                            // Make use of `swap_remove` due to its O(1) complexity and the route order
+                            // of each vehicle is not important.
+                            // **Note**: We assign route j and k first because they are guaranteed to not be empty.
+                            {
+                                let cloned_routes_k =
+                                    RK::get_correct_route_mut(&mut truck_cloned, &mut drone_cloned);
+                                cloned_routes_k[vehicle_k][route_idx_k] = new_route_k.clone();
+                            }
+
+                            {
+                                let cloned_routes_j =
+                                    RJ::get_correct_route_mut(&mut truck_cloned, &mut drone_cloned);
+                                cloned_routes_j[vehicle_j][route_idx_j] = new_route_j.clone();
+                            }
+
+                            {
+                                let cloned_routes_i =
+                                    RI::get_correct_route_mut(&mut truck_cloned, &mut drone_cloned);
+                                match &new_route_i {
+                                    Some(new_route_i) => {
+                                        cloned_routes_i[vehicle_i][route_idx_i] =
+                                            new_route_i.clone();
+                                    }
+                                    None => {
+                                        cloned_routes_i[vehicle_i].swap_remove(route_idx_i);
+                                    }
+                                }
+                            }
+
+                            // Construct the new solution: move `truck_cloned` and `drone_cloned` to the temp solution
+                            // and get them back later during restoration
+                            let s = Solution::new(truck_cloned, drone_cloned);
+                            Neighborhood::_internal_update(state, &s, &tabu);
+
+                            // Restore old routes
+                            truck_cloned = s.truck_routes;
+                            drone_cloned = s.drone_routes;
+                            {
+                                let cloned_routes_i =
+                                    RI::get_correct_route_mut(&mut truck_cloned, &mut drone_cloned);
+                                match new_route_i {
+                                    Some(_) => {
+                                        cloned_routes_i[vehicle_i][route_idx_i] = route_i.clone();
+                                    }
+                                    None => {
+                                        _swap_push(
+                                            &mut cloned_routes_i[vehicle_i],
+                                            route_idx_i,
+                                            route_i.clone(),
+                                        );
+                                    }
+                                }
+                            }
+                            {
+                                let cloned_routes_j =
+                                    RJ::get_correct_route_mut(&mut truck_cloned, &mut drone_cloned);
+                                cloned_routes_j[vehicle_j][route_idx_j] = route_j.clone();
+                            }
+                            {
+                                let cloned_routes_k =
+                                    RK::get_correct_route_mut(&mut truck_cloned, &mut drone_cloned);
+                                cloned_routes_k[vehicle_k][route_idx_k] = route_k.clone();
+                            }
+                        }
+                    }
+                }
+
+                (truck_cloned, drone_cloned)
+            }
+
+            let original_routes_j =
+                RJ::get_correct_route(&state.original.truck_routes, &state.original.drone_routes);
+
+            for (vehicle_j, routes_j) in original_routes_j.iter().enumerate() {
+                // Either i or j must be the decisive vehicle
+                if (DR::ID == RI::ID && decisive == vehicle_i)
+                    || (DR::ID == RJ::ID && decisive == vehicle_j)
+                {
+                    for (route_idx_j, route_j) in routes_j.iter().enumerate() {
+                        // Dirty trick to compare 2 routes (because each customer can only be served exactly once)
+                        if route_i.data().customers[1] == route_j.data().customers[1] {
+                            continue;
+                        }
+
+                        (truck_cloned, drone_cloned) = iterate_route_k::<RI, RJ, TruckRoute>(
+                            neighborhood,
+                            state,
+                            truck_cloned,
+                            drone_cloned,
+                            vehicle_i,
+                            route_idx_i,
+                            route_i,
+                            vehicle_j,
+                            route_idx_j,
+                            route_j,
+                        );
+                        (truck_cloned, drone_cloned) = iterate_route_k::<RI, RJ, DroneRoute>(
+                            neighborhood,
+                            state,
+                            truck_cloned,
+                            drone_cloned,
+                            vehicle_i,
+                            route_idx_i,
+                            route_i,
+                            vehicle_j,
+                            route_idx_j,
+                            route_j,
+                        );
+                    }
+                }
+            }
+
+            (truck_cloned, drone_cloned)
+        }
+
+        let original_routes_i =
+            RI::get_correct_route(&state.original.truck_routes, &state.original.drone_routes);
+        for (vehicle_i, routes_i) in original_routes_i.iter().enumerate() {
+            for (route_idx_i, route_i) in routes_i.iter().enumerate() {
+                (truck_cloned, drone_cloned) = iterate_route_j::<DR, RI, TruckRoute>(
+                    self,
+                    state,
+                    truck_cloned,
+                    drone_cloned,
+                    decisive,
+                    vehicle_i,
+                    route_idx_i,
+                    route_i,
+                );
+                (truck_cloned, drone_cloned) = iterate_route_j::<DR, RI, DroneRoute>(
+                    self,
+                    state,
+                    truck_cloned,
+                    drone_cloned,
+                    decisive,
+                    vehicle_i,
+                    route_idx_i,
+                    route_i,
+                );
+            }
+        }
+
+        (truck_cloned, drone_cloned)
     }
 
     pub fn inter_route(
@@ -99,13 +592,14 @@ impl Neighborhood {
         let mut require_feasible = false;
         let mut result = (solution.clone(), vec![]);
 
-        /// Opposite of `Vec::swap_remove` - push an element to the end of the vector
-        /// and swap it with the element at the given index.
-        fn swap_push<T>(vec: &mut Vec<T>, index: usize, element: T) {
-            let l = vec.len();
-            vec.push(element);
-            vec.swap(index, l);
-        }
+        let mut state = _IterationState {
+            original: solution,
+            tabu_list,
+            aspiration_cost: &mut aspiration_cost,
+            min_cost: &mut min_cost,
+            require_feasible: &mut require_feasible,
+            result: &mut result,
+        };
 
         match self {
             Self::Move10
@@ -114,290 +608,68 @@ impl Neighborhood {
             | Self::Move21
             | Self::Move22
             | Self::TwoOpt => {
-                macro_rules! iterate_route_i {
-                    ($original_routes_i:expr, $cloned_routes_i:expr, $one_customer_per_route_i:expr) => {
-                        let routes_i = &$original_routes_i[vehicle_i];
-                        for (route_idx_i, route_i) in routes_i.iter().enumerate() {
-                            macro_rules! iterate_route_j {
-                                ($original_routes_j:expr, $cloned_routes_j:expr, $one_customer_per_route_j:expr) => {
-                                    for (vehicle_j, routes_j) in $original_routes_j.iter().enumerate() {
-                                        for (route_idx_j, route_j) in routes_j.iter().enumerate() {
-                                            // Dirty trick to compare 2 routes (because each customer can only be served exactly once)
-                                            if route_i.data().customers[1] == route_j.data().customers[1] {
-                                                continue;
-                                            }
-
-                                            let mut neighbors = route_i.inter_route(route_j.clone(), self);
-                                            let asymmetric = self == Self::Move10 || self == Self::Move20 || self == Self::Move21;
-                                            if asymmetric {
-                                                neighbors.extend(
-                                                    route_j
-                                                        .inter_route(route_i.clone(), self)
-                                                        .into_iter()
-                                                        .map(|t| (t.1, t.0, t.2)),
-                                                );
-                                            }
-
-                                            for (new_route_i, new_route_j, tabu) in neighbors
-                                            {
-                                                if let Some(ref new_route_i) = new_route_i {
-                                                    if $one_customer_per_route_i && new_route_i.data().customers.len() != 3 {
-                                                        continue;
-                                                    }
-                                                }
-                                                if let Some(ref new_route_j) = new_route_j {
-                                                    if $one_customer_per_route_j && new_route_j.data().customers.len() != 3 {
-                                                        continue;
-                                                    }
-                                                }
-
-                                                // Temporary assign new routes.
-                                                // Make use of `swap_remove` due to its O(1) complexity and the route order
-                                                // of each vehicle is not important.
-                                                let mut route_idx_j_after_swap_remove = route_idx_j;
-                                                match &new_route_i {
-                                                    Some(new_route_i) => {
-                                                        $cloned_routes_i[vehicle_i][route_idx_i] = new_route_i.clone();
-                                                    }
-                                                    None => {
-                                                        $cloned_routes_i[vehicle_i].swap_remove(route_idx_i);
-                                                        if std::ptr::addr_eq(routes_i, routes_j) /* same vehicle */ && route_idx_j == routes_j.len() - 1 {
-                                                            route_idx_j_after_swap_remove = route_idx_i;
-                                                        }
-                                                    }
-                                                }
-                                                match &new_route_j {
-                                                    Some(new_route_j) => {
-                                                        $cloned_routes_j[vehicle_j][route_idx_j_after_swap_remove] = new_route_j.clone();
-                                                    }
-                                                    None => {
-                                                        $cloned_routes_j[vehicle_j].swap_remove(route_idx_j_after_swap_remove);
-                                                    }
-                                                }
-
-                                                // Construct the new solution: move `truck_cloned` and `drone_cloned` to the temp solution
-                                                // and get them back later during restoration
-                                                let s = Solution::new(truck_cloned, drone_cloned);
-
-                                                Self::_internal_update(
-                                                    tabu_list,
-                                                    &mut aspiration_cost,
-                                                    &mut min_cost,
-                                                    &mut require_feasible,
-                                                    &mut result,
-                                                    &s,
-                                                    &tabu,
-                                                );
-
-                                                // Restore old routes
-                                                truck_cloned = s.truck_routes;
-                                                drone_cloned = s.drone_routes;
-                                                match new_route_j {
-                                                    Some(_) => {
-                                                        $cloned_routes_j[vehicle_j][route_idx_j_after_swap_remove] = route_j.clone();
-                                                    }
-                                                    None => {
-                                                        swap_push(
-                                                            &mut $cloned_routes_j[vehicle_j],
-                                                            route_idx_j_after_swap_remove,
-                                                            route_j.clone(),
-                                                        );
-                                                    }
-                                                }
-                                                match new_route_i {
-                                                    Some(_) => {
-                                                        $cloned_routes_i[vehicle_i][route_idx_i] = route_i.clone();
-                                                    }
-                                                    None => {
-                                                        swap_push(
-                                                            &mut $cloned_routes_i[vehicle_i],
-                                                            route_idx_i,
-                                                            route_i.clone(),
-                                                        );
-                                                    }
-                                                }
-                                            }
-                                        }
-                                    }
-                                };
-                            }
-
-                            iterate_route_j!(solution.truck_routes, truck_cloned, false);
-                            iterate_route_j!(solution.drone_routes, drone_cloned, CONFIG.single_drone_route);
-                        }
-                    };
-                }
-
-                if is_truck {
-                    iterate_route_i!(solution.truck_routes, truck_cloned, false);
-                } else {
-                    iterate_route_i!(
-                        solution.drone_routes,
+                (truck_cloned, drone_cloned) = if is_truck {
+                    self._inter_route_internal::<TruckRoute>(
+                        &mut state,
+                        truck_cloned,
                         drone_cloned,
-                        CONFIG.single_drone_route
-                    );
-                }
-
-                macro_rules! iterate_route_i_extract {
-                    ($original_routes_i:expr, $cloned_routes_i:expr) => {
-                        let routes_i = &$original_routes_i[vehicle_i];
-                        for (route_idx_i, route_i) in routes_i.iter().enumerate() {
-                            macro_rules! iterate_route_j_append {
-                                ($original_routes_j:expr, $cloned_routes_j:expr, $type_j:tt, $one_route_per_vehicle:expr, $one_customer_per_route:expr) => {
-                                    for (new_route_i, new_route_j, tabu) in
-                                        route_i.inter_route_extract::<$type_j>(self)
-                                    {
-                                        if $one_customer_per_route && new_route_j.data().customers.len() != 3 {
-                                            continue;
-                                        }
-
-                                        $cloned_routes_i[vehicle_i][route_idx_i] = new_route_i;
-                                        for vehicle_j in 0..$original_routes_j.len() {
-                                            if $one_route_per_vehicle && !$cloned_routes_j[vehicle_j].is_empty()
-                                            {
-                                                continue;
-                                            }
-
-                                            $cloned_routes_j[vehicle_j].push(new_route_j.clone());
-
-                                            let s = Solution::new(truck_cloned, drone_cloned);
-
-                                            Self::_internal_update(
-                                                tabu_list,
-                                                &mut aspiration_cost,
-                                                &mut min_cost,
-                                                &mut require_feasible,
-                                                &mut result,
-                                                &s,
-                                                &tabu,
-                                            );
-
-                                            // Restore old routes
-                                            truck_cloned = s.truck_routes;
-                                            drone_cloned = s.drone_routes;
-
-                                            $cloned_routes_j[vehicle_j].pop();
-                                        }
-                                    }
-                                };
-                            }
-
-                            iterate_route_j_append!(solution.truck_routes, truck_cloned, TruckRoute, CONFIG.single_truck_route, false);
-                            iterate_route_j_append!(solution.drone_routes, drone_cloned, DroneRoute, false, CONFIG.single_drone_route);
-
-                            $cloned_routes_i[vehicle_i][route_idx_i] = route_i.clone();
-                        }
-                    };
-                }
+                        vehicle_i,
+                    )
+                } else {
+                    self._inter_route_internal::<DroneRoute>(
+                        &mut state,
+                        truck_cloned,
+                        drone_cloned,
+                        vehicle_i,
+                    )
+                };
 
                 if is_truck {
-                    iterate_route_i_extract!(solution.truck_routes, truck_cloned);
+                    self._inter_route_extract_internal::<TruckRoute>(
+                        &mut state,
+                        truck_cloned,
+                        drone_cloned,
+                        vehicle_i,
+                    );
                 } else {
-                    iterate_route_i_extract!(solution.drone_routes, drone_cloned);
+                    self._inter_route_extract_internal::<DroneRoute>(
+                        &mut state,
+                        truck_cloned,
+                        drone_cloned,
+                        vehicle_i,
+                    );
                 }
             }
 
             Self::EjectionChain => {
-                macro_rules! iterate_route_i {
-                    ($original_routes_i:expr, $cloned_routes_i:expr) => {
-                        let routes_i = &$original_routes_i[vehicle_i];
-                        for (route_idx_i, route_i) in routes_i.iter().enumerate() {
-                            macro_rules! iterate_route_j {
-                                ($original_routes_j:expr, $cloned_routes_j:expr) => {
-                                    for (vehicle_j, routes_j) in $original_routes_j.iter().enumerate() {
-                                        for (route_idx_j, route_j) in routes_j.iter().enumerate() {
-                                            // Dirty trick to compare 2 routes (because each customer can only be served exactly once)
-                                            if route_i.data().customers[1] == route_j.data().customers[1] {
-                                                continue;
-                                            }
-
-                                            macro_rules! iterate_route_k {
-                                                ($original_routes_k:expr, $cloned_routes_k:expr, $one_customer_per_route_k:expr) => {
-                                                    for (vehicle_k, routes_k) in $original_routes_k.iter().enumerate() {
-                                                        for (route_idx_k, route_k) in routes_k.iter().enumerate() {
-                                                            if route_i.data().customers[1] == route_k.data().customers[1] {
-                                                                continue;
-                                                            }
-
-                                                            if route_j.data().customers[1] == route_k.data().customers[1] {
-                                                                continue;
-                                                            }
-
-                                                            let neighbors = route_i.inter_route_3(route_j.clone(), route_k.clone(), self);
-                                                            // No need for inter_route_3(k, j) because we are already looping through all possible pairs
-                                                            for (new_route_i, new_route_j, new_route_k, tabu) in neighbors {
-                                                                if $one_customer_per_route_k && new_route_k.data().customers.len() != 3 {
-                                                                    continue;
-                                                                }
-
-                                                                // Temporary assign new routes.
-                                                                // Make use of `swap_remove` due to its O(1) complexity and the route order
-                                                                // of each vehicle is not important.
-                                                                // **Note**: We assign route j and k first because they are guaranteed to not be empty.
-                                                                $cloned_routes_k[vehicle_k][route_idx_k] = new_route_k.clone();
-                                                                $cloned_routes_j[vehicle_j][route_idx_j] = new_route_j.clone();
-                                                                match &new_route_i {
-                                                                    Some(new_route_i) => {
-                                                                        $cloned_routes_i[vehicle_i][route_idx_i] = new_route_i.clone();
-                                                                    }
-                                                                    None => {
-                                                                        $cloned_routes_i[vehicle_i].swap_remove(route_idx_i);
-                                                                    }
-                                                                }
-
-                                                                // Construct the new solution: move `truck_cloned` and `drone_cloned` to the temp solution
-                                                                // and get them back later during restoration
-                                                                let s = Solution::new(truck_cloned, drone_cloned);
-                                                                Self::_internal_update(
-                                                                    tabu_list,
-                                                                    &mut aspiration_cost,
-                                                                    &mut min_cost,
-                                                                    &mut require_feasible,
-                                                                    &mut result,
-                                                                    &s,
-                                                                    &tabu,
-                                                                );
-
-                                                                // Restore old routes
-                                                                truck_cloned = s.truck_routes;
-                                                                drone_cloned = s.drone_routes;
-                                                                match new_route_i {
-                                                                    Some(_) => {
-                                                                        $cloned_routes_i[vehicle_i][route_idx_i] = route_i.clone();
-                                                                    }
-                                                                    None => {
-                                                                        swap_push(
-                                                                            &mut $cloned_routes_i[vehicle_i],
-                                                                            route_idx_i,
-                                                                            route_i.clone(),
-                                                                        );
-                                                                    }
-                                                                }
-                                                                $cloned_routes_j[vehicle_j][route_idx_j] = route_j.clone();
-                                                                $cloned_routes_k[vehicle_k][route_idx_k] = route_k.clone();
-                                                            }
-                                                        }
-                                                    }
-                                                }
-                                            }
-
-                                            iterate_route_k!(solution.truck_routes, truck_cloned, false);
-                                            iterate_route_k!(solution.drone_routes, drone_cloned, CONFIG.single_drone_route);
-                                        }
-                                    }
-                                };
-                            }
-
-                            iterate_route_j!(solution.truck_routes, truck_cloned);
-                            iterate_route_j!(solution.drone_routes, drone_cloned);
-                        }
-                    };
-                }
-
                 if is_truck {
-                    iterate_route_i!(solution.truck_routes, truck_cloned);
+                    (truck_cloned, drone_cloned) = self
+                        ._ejection_chain_internal::<TruckRoute, TruckRoute>(
+                            &mut state,
+                            truck_cloned,
+                            drone_cloned,
+                            vehicle_i,
+                        );
+                    self._ejection_chain_internal::<TruckRoute, DroneRoute>(
+                        &mut state,
+                        truck_cloned,
+                        drone_cloned,
+                        vehicle_i,
+                    );
                 } else {
-                    iterate_route_i!(solution.drone_routes, drone_cloned);
+                    (truck_cloned, drone_cloned) = self
+                        ._ejection_chain_internal::<DroneRoute, TruckRoute>(
+                            &mut state,
+                            truck_cloned,
+                            drone_cloned,
+                            vehicle_i,
+                        );
+                    self._ejection_chain_internal::<DroneRoute, DroneRoute>(
+                        &mut state,
+                        truck_cloned,
+                        drone_cloned,
+                        vehicle_i,
+                    );
                 }
             }
         }
@@ -424,6 +696,15 @@ impl Neighborhood {
         let mut min_cost = f64::MAX;
         let mut require_feasible = false;
 
+        let mut state = _IterationState {
+            original: solution,
+            tabu_list,
+            aspiration_cost: &mut aspiration_cost,
+            min_cost: &mut min_cost,
+            require_feasible: &mut require_feasible,
+            result: &mut result,
+        };
+
         macro_rules! search_route {
             ($original_routes:expr, $cloned_routes:expr) => {
                 for (i, route) in $original_routes[vehicle].iter().enumerate() {
@@ -436,11 +717,7 @@ impl Neighborhood {
                         let s = Solution::new(truck_cloned, drone_cloned);
 
                         Self::_internal_update(
-                            tabu_list,
-                            &mut aspiration_cost,
-                            &mut min_cost,
-                            &mut require_feasible,
-                            &mut result,
+                            &mut state,
                             &s,
                             &tabu,
                         );
