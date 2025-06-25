@@ -19,7 +19,7 @@ pub struct _RouteData {
 }
 
 impl _RouteData {
-    fn _construct(customers: Vec<usize>, distances: &[Vec<f64>]) -> _RouteData {
+    fn _construct(customers: Vec<usize>, distances: &[Vec<f64>]) -> Self {
         assert_eq!(customers.first(), Some(&0));
         assert_eq!(customers.last(), Some(&0));
         assert!(customers.len() >= 3);
@@ -31,7 +31,7 @@ impl _RouteData {
             weight += CONFIG.demands[customers[i]];
         }
 
-        _RouteData {
+        Self {
             customers,
             value: _RouteDataValues { distance, weight },
         }
@@ -46,9 +46,9 @@ pub trait Route: Sized {
         Self::new(vec![0, customer, 0])
     }
     fn get_correct_route<'a>(
-        truck_routes: &'a Vec<Vec<Rc<TruckRoute>>>,
-        drone_routes: &'a Vec<Vec<Rc<DroneRoute>>>,
-    ) -> &'a Vec<Vec<Rc<Self>>>;
+        truck_routes: &'a [Vec<Rc<TruckRoute>>],
+        drone_routes: &'a [Vec<Rc<DroneRoute>>],
+    ) -> &'a [Vec<Rc<Self>>];
     fn get_correct_route_mut<'a>(
         truck_routes: &'a mut Vec<Vec<Rc<TruckRoute>>>,
         drone_routes: &'a mut Vec<Vec<Rc<DroneRoute>>>,
@@ -111,7 +111,7 @@ pub trait Route: Sized {
 
                 if queue.len() == size {
                     let mut original = customers[0..i - size + 1].to_vec();
-                    original.extend(customers[i + 1..].iter().cloned());
+                    original.extend(customers[i + 1..].iter().copied());
 
                     let mut route = vec![0];
                     route.extend(queue.iter().copied());
@@ -128,7 +128,6 @@ pub trait Route: Sized {
         results
     }
 
-    #[allow(clippy::type_complexity)]
     /// Perform inter-route neighborhood search.
     ///
     /// This function is non-commutative (i.e. `r1.inter_route(r2, n) != r2.inter_route(r1, n)`). For example,
@@ -334,7 +333,6 @@ pub trait Route: Sized {
         results
     }
 
-    #[allow(clippy::type_complexity)]
     fn inter_route_3<T1, T2>(
         &self,
         other_x: Rc<T1>,
@@ -613,17 +611,17 @@ impl fmt::Debug for TruckRoute {
 impl Route for TruckRoute {
     const ID: u8 = 0;
 
-    fn new(customers: Vec<usize>) -> Rc<TruckRoute> {
-        Rc::new(TruckRoute::_construct(_RouteData::_construct(
+    fn new(customers: Vec<usize>) -> Rc<Self> {
+        Rc::new(Self::_construct(_RouteData::_construct(
             customers.clone(),
             &CONFIG.truck_distances,
         )))
     }
 
     fn get_correct_route<'a>(
-        truck_routes: &'a Vec<Vec<Rc<TruckRoute>>>,
-        _: &'a Vec<Vec<Rc<DroneRoute>>>,
-    ) -> &'a Vec<Vec<Rc<Self>>> {
+        truck_routes: &'a [Vec<Rc<TruckRoute>>],
+        _: &'a [Vec<Rc<DroneRoute>>],
+    ) -> &'a [Vec<Rc<Self>>] {
         truck_routes
     }
 
@@ -677,14 +675,14 @@ impl TruckRoute {
         waiting_time_violation
     }
 
-    fn _construct(data: _RouteData) -> TruckRoute {
+    fn _construct(data: _RouteData) -> Self {
         let speed = CONFIG.truck.speed;
         let _working_time = data.value.distance / speed;
         let _capacity_violation = (data.value.weight - CONFIG.truck.capacity).max(0.0);
         let _waiting_time_violation =
             Self::_calculate_waiting_time_violation(&data.customers, _working_time);
 
-        TruckRoute {
+        Self {
             _data: data,
             _working_time,
             _capacity_violation,
@@ -712,17 +710,17 @@ impl fmt::Debug for DroneRoute {
 impl Route for DroneRoute {
     const ID: u8 = 1;
 
-    fn new(customers: Vec<usize>) -> Rc<DroneRoute> {
-        Rc::new(DroneRoute::_construct(_RouteData::_construct(
+    fn new(customers: Vec<usize>) -> Rc<Self> {
+        Rc::new(Self::_construct(_RouteData::_construct(
             customers.clone(),
             &CONFIG.drone_distances,
         )))
     }
 
     fn get_correct_route<'a>(
-        _: &'a Vec<Vec<Rc<TruckRoute>>>,
-        drone_routes: &'a Vec<Vec<Rc<DroneRoute>>>,
-    ) -> &'a Vec<Vec<Rc<Self>>> {
+        _: &'a [Vec<Rc<TruckRoute>>],
+        drone_routes: &'a [Vec<Rc<DroneRoute>>],
+    ) -> &'a [Vec<Rc<Self>>] {
         drone_routes
     }
 
@@ -763,14 +761,15 @@ impl Route for DroneRoute {
 }
 
 impl DroneRoute {
-    fn _construct(data: _RouteData) -> DroneRoute {
+    fn _construct(data: _RouteData) -> Self {
         let customers = &data.customers;
         let distances = &CONFIG.drone_distances;
         let drone = &CONFIG.drone;
 
-        let _working_time = CONFIG.drone.cruise_time(data.value.distance)
-            + (CONFIG.drone.takeoff_time() + CONFIG.drone.landing_time())
-                * (customers.len() as f64 - 1.0);
+        let _working_time = (CONFIG.drone.takeoff_time() + CONFIG.drone.landing_time()).mul_add(
+            customers.len() as f64 - 1.0,
+            CONFIG.drone.cruise_time(data.value.distance),
+        );
         let _capacity_violation = (data.value.weight - CONFIG.drone.capacity()).max(0.0);
 
         let mut time = 0.0;
@@ -784,9 +783,12 @@ impl DroneRoute {
             let cruise = drone.cruise_time(distances[customers[i]][customers[i + 1]]);
 
             time += takeoff + cruise + landing;
-            energy += drone.takeoff_power(weight) * takeoff
-                + drone.cruise_power(weight) * cruise
-                + drone.landing_power(weight) * landing;
+            energy += drone.landing_power(weight).mul_add(
+                landing,
+                drone
+                    .takeoff_power(weight)
+                    .mul_add(takeoff, drone.cruise_power(weight) * cruise),
+            );
             weight += CONFIG.demands[customers[i]];
             _waiting_time_violation += (_working_time - time - CONFIG.waiting_time_limit).max(0.0);
         }
@@ -794,7 +796,7 @@ impl DroneRoute {
         let energy_violation = (energy - CONFIG.drone.battery()).max(0.0);
         let fixed_time_violation = (_working_time - CONFIG.drone.fixed_time()).max(0.0);
 
-        DroneRoute {
+        Self {
             _data: data,
             _working_time,
             _capacity_violation,

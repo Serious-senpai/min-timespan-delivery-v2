@@ -111,8 +111,8 @@ impl DistanceType {
                 let dx = x[i] - x[j];
                 let dy = y[i] - y[j];
                 matrix[i][j] = match self {
-                    DistanceType::Manhattan => dx.abs() + dy.abs(),
-                    DistanceType::Euclidean => (dx * dx + dy * dy).sqrt(),
+                    Self::Manhattan => dx.abs() + dy.abs(),
+                    Self::Euclidean => (dx * dx + dy * dy).sqrt(),
                 };
             }
         }

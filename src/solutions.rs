@@ -127,7 +127,7 @@ impl Solution {
     pub fn new(
         truck_routes: Vec<Vec<Rc<TruckRoute>>>,
         drone_routes: Vec<Vec<Rc<DroneRoute>>>,
-    ) -> Solution {
+    ) -> Self {
         let mut working_time: f64 = 0.0;
         let mut energy_violation = 0.0;
         let mut capacity_violation = 0.0;
@@ -167,7 +167,7 @@ impl Solution {
         waiting_time_violation /= CONFIG.waiting_time_limit;
         fixed_time_violation /= CONFIG.drone.fixed_time();
 
-        Solution {
+        Self {
             truck_routes,
             drone_routes,
             working_time,
@@ -242,15 +242,11 @@ impl Solution {
 
     pub fn cost(&self) -> f64 {
         self.working_time
-            * (1.0
-                + penalty_coeff::<0>() * self.energy_violation
-                + penalty_coeff::<1>() * self.capacity_violation
-                + penalty_coeff::<2>() * self.waiting_time_violation
-                + penalty_coeff::<3>() * self.fixed_time_violation)
+            * penalty_coeff::<3>().mul_add(self.fixed_time_violation, penalty_coeff::<2>().mul_add(self.waiting_time_violation, penalty_coeff::<1>().mul_add(self.capacity_violation, penalty_coeff::<0>().mul_add(self.energy_violation, 1.0))))
                 .powf(CONFIG.penalty_exponent)
     }
 
-    pub fn hamming_distance(&self, other: &Solution) -> usize {
+    pub fn hamming_distance(&self, other: &Self) -> usize {
         fn fill_repr<T>(vehicle_routes: &Vec<Vec<Rc<T>>>, repr: &mut [usize])
         where
             T: Route,
@@ -280,7 +276,7 @@ impl Solution {
             .count()
     }
 
-    pub fn post_optimization(&self) -> Solution {
+    pub fn post_optimization(&self) -> Self {
         let mut result = Rc::new(self.clone());
 
         let mut improved = true;
@@ -296,10 +292,10 @@ impl Solution {
             }
         }
 
-        Solution::clone(&result)
+        Self::clone(&result)
     }
 
-    pub fn initialize() -> Solution {
+    pub fn initialize() -> Self {
         fn _sort_cluster_with_starting_point(
             cluster: &mut [usize],
             mut start: usize,
@@ -455,7 +451,6 @@ impl Solution {
 
         let mut global = BTreeSet::from_iter(1..CONFIG.customers_count + 1);
 
-        #[allow(clippy::too_many_arguments)]
         fn truck_next(
             truckable: &[bool],
             clusters: &[Vec<usize>],
@@ -499,7 +494,6 @@ impl Solution {
             }
         }
 
-        #[allow(clippy::too_many_arguments)]
         fn drone_next(
             dronable: &[bool],
             clusters: &[Vec<usize>],
@@ -700,10 +694,10 @@ impl Solution {
             drone_routes.clear();
         }
 
-        Solution::new(truck_routes, drone_routes)
+        Self::new(truck_routes, drone_routes)
     }
 
-    pub fn destroy_and_repair(&self, edge_records: &[Vec<f64>]) -> Solution {
+    pub fn destroy_and_repair(&self, edge_records: &[Vec<f64>]) -> Self {
         // TODO: Implement
         let mut scores = vec![0.0; CONFIG.customers_count + 1];
         for routes in &self.truck_routes {
@@ -913,13 +907,13 @@ impl Solution {
         // s.verify();
     }
 
-    pub fn tabu_search(root: Solution, logger: &mut Logger) -> Solution {
+    pub fn tabu_search(root: Self, logger: &mut Logger) -> Self {
         let mut total_vehicle = 0;
         for truck in &root.truck_routes {
-            total_vehicle += !truck.is_empty() as usize;
+            total_vehicle += usize::from(!truck.is_empty());
         }
         for drone in &root.drone_routes {
-            total_vehicle += !drone.is_empty() as usize;
+            total_vehicle += usize::from(!drone.is_empty());
         }
         let base_hyperparameter = CONFIG.customers_count as f64 / total_vehicle as f64;
         let tabu_size = (CONFIG.tabu_size_factor * base_hyperparameter) as usize;
@@ -1110,6 +1104,6 @@ impl Solution {
             .finalize(&result, tabu_size, reset_after, last_improved)
             .unwrap();
 
-        Solution::clone(&result)
+        Self::clone(&result)
     }
 }

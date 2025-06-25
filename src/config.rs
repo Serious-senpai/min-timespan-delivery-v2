@@ -1,5 +1,5 @@
-use std::fs;
 use std::sync::LazyLock;
+use std::{f64::consts, fs};
 
 use clap::Parser;
 use regex::{Regex, RegexBuilder};
@@ -185,7 +185,7 @@ impl DroneConfig {
         config: cli::EnergyModel,
         speed_type: cli::ConfigType,
         range_type: cli::ConfigType,
-    ) -> DroneConfig {
+    ) -> Self {
         match config {
             cli::EnergyModel::Linear => {
                 let data =
@@ -232,7 +232,7 @@ impl DroneConfig {
                             * config.cruise_speed
                             * config.cruise_speed;
 
-                        let deg_10 = std::f64::consts::PI / 18.0;
+                        let deg_10 = consts::PI / 18.0;
                         let _hori_c5 = data.c5 * (config.cruise_speed * deg_10.cos()).powi(2);
 
                         let _takeoff_time = config.altitude / config.takeoff_speed;
@@ -302,15 +302,14 @@ impl DroneConfig {
 
     pub fn fixed_time(&self) -> f64 {
         match self {
-            Self::Linear { .. } => f64::INFINITY,
-            Self::NonLinear { .. } => f64::INFINITY,
+            Self::Linear { .. } | Self::NonLinear { .. } => f64::INFINITY,
             Self::Endurance { _data, .. } => _data.fixed_time,
         }
     }
 
     pub fn takeoff_power(&self, weight: f64) -> f64 {
         match self {
-            Self::Linear { _data, .. } => _data.beta * weight + _data.gamma,
+            Self::Linear { _data, .. } => _data.beta.mul_add(weight, _data.gamma),
             Self::NonLinear {
                 _vert_k1,
                 _vert_k2,
@@ -320,8 +319,10 @@ impl DroneConfig {
                 ..
             } => {
                 let w = Self::W + weight;
-                _vert_k1 * w * (_vert_half_takeoff + (_vert_half_takeoff_2 + _vert_k2 * w).sqrt())
-                    + _vert_c2 * w.powf(1.5)
+                (_vert_k1 * w).mul_add(
+                    _vert_half_takeoff + (_vert_half_takeoff_2 + _vert_k2 * w).sqrt(),
+                    _vert_c2 * w.powf(1.5),
+                )
             }
             Self::Endurance { .. } => 0.0,
         }
@@ -329,7 +330,7 @@ impl DroneConfig {
 
     pub fn landing_power(&self, weight: f64) -> f64 {
         match self {
-            Self::Linear { _data, .. } => _data.beta * weight + _data.gamma,
+            Self::Linear { _data, .. } => _data.beta.mul_add(weight, _data.gamma),
             Self::NonLinear {
                 _vert_k1,
                 _vert_k2,
@@ -339,8 +340,10 @@ impl DroneConfig {
                 ..
             } => {
                 let w = Self::W + weight;
-                _vert_k1 * w * (_vert_half_landing + (_vert_half_landing_2 + _vert_k2 * w).sqrt())
-                    + _vert_c2 * w.powf(1.5)
+                (_vert_k1 * w).mul_add(
+                    _vert_half_landing + (_vert_half_landing_2 + _vert_k2 * w).sqrt(),
+                    _vert_c2 * w.powf(1.5),
+                )
             }
             Self::Endurance { .. } => 0.0,
         }
@@ -348,7 +351,7 @@ impl DroneConfig {
 
     pub fn cruise_power(&self, weight: f64) -> f64 {
         match self {
-            Self::Linear { _data, .. } => _data.beta * weight + _data.gamma,
+            Self::Linear { _data, .. } => _data.beta.mul_add(weight, _data.gamma),
             Self::NonLinear {
                 _hori_c12,
                 _hori_c4v3,
@@ -365,16 +368,18 @@ impl DroneConfig {
 
     pub fn takeoff_time(&self) -> f64 {
         match self {
-            Self::Linear { _takeoff_time, .. } => *_takeoff_time,
-            Self::NonLinear { _takeoff_time, .. } => *_takeoff_time,
+            Self::Linear { _takeoff_time, .. } | Self::NonLinear { _takeoff_time, .. } => {
+                *_takeoff_time
+            }
             Self::Endurance { .. } => 0.0,
         }
     }
 
     pub fn landing_time(&self) -> f64 {
         match self {
-            Self::Linear { _landing_time, .. } => *_landing_time,
-            Self::NonLinear { _landing_time, .. } => *_landing_time,
+            Self::Linear { _landing_time, .. } | Self::NonLinear { _landing_time, .. } => {
+                *_landing_time
+            }
             Self::Endurance { .. } => 0.0,
         }
     }
@@ -469,11 +474,11 @@ pub struct Config {
 }
 
 impl From<SerializedConfig> for Config {
-    fn from(config: SerializedConfig) -> Config {
+    fn from(config: SerializedConfig) -> Self {
         let truck_distances = config.truck_distance.matrix(&config.x, &config.y);
         let drone_distances = config.drone_distance.matrix(&config.x, &config.y);
 
-        Config {
+        Self {
             customers_count: config.customers_count,
             trucks_count: config.trucks_count,
             drones_count: config.drones_count,
@@ -512,8 +517,8 @@ impl From<SerializedConfig> for Config {
 }
 
 impl From<Config> for SerializedConfig {
-    fn from(config: Config) -> SerializedConfig {
-        SerializedConfig {
+    fn from(config: Config) -> Self {
+        Self {
             customers_count: config.customers_count,
             trucks_count: config.trucks_count,
             drones_count: config.drones_count,
@@ -660,11 +665,16 @@ pub static CONFIG: LazyLock<Config> = LazyLock::new(|| {
                         + drone.cruise_time(drone_distances[0][i] + drone_distances[i][0])
                         + landing
                         <= drone.fixed_time()
-                    && (takeoff_from_depot + drone.takeoff_power(demands[i])) * takeoff
-                        + cruise_from_depot * drone.cruise_time(drone_distances[0][i])
-                        + drone.cruise_power(demands[i]) * drone.cruise_time(drone_distances[i][0])
-                        + (landing_from_depot + drone.landing_power(demands[i])) * landing
-                        <= drone.battery();
+                    && (landing_from_depot + drone.landing_power(demands[i])).mul_add(
+                        landing,
+                        drone.cruise_power(demands[i]).mul_add(
+                            drone.cruise_time(drone_distances[i][0]),
+                            (takeoff_from_depot + drone.takeoff_power(demands[i])).mul_add(
+                                takeoff,
+                                cruise_from_depot * drone.cruise_time(drone_distances[0][i]),
+                            ),
+                        ),
+                    ) <= drone.battery();
             }
 
             Config {

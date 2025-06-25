@@ -1,5 +1,6 @@
 use std::cmp::min;
 use std::collections::HashMap;
+use std::f64::consts;
 
 use crate::config::CONFIG;
 
@@ -15,7 +16,7 @@ pub fn clusterize(customers: &mut [usize], k: usize) -> Vec<Vec<usize>> {
     for &customer in customers.iter() {
         let mut angle = (y[customer] - y[0]).atan2(x[customer] - x[0]);
         if angle < 0.0 {
-            angle += 2.0 * std::f64::consts::PI;
+            angle += 2.0 * consts::PI;
         }
 
         angles.insert(customer, angle);

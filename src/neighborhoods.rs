@@ -1,4 +1,5 @@
-use std::fmt::Display;
+use std::fmt::{self, Display};
+use std::ptr;
 use std::rc::Rc;
 
 use crate::routes::{DroneRoute, Route, TruckRoute};
@@ -16,7 +17,7 @@ pub enum Neighborhood {
 }
 
 impl Display for Neighborhood {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
             "{}",
@@ -169,7 +170,7 @@ impl Neighborhood {
                                 }
                                 None => {
                                     cloned_routes_i[vehicle_i].swap_remove(route_idx_i);
-                                    if std::ptr::addr_eq(routes_i, routes_j) /* same vehicle */ && route_idx_j == routes_j.len() - 1
+                                    if ptr::addr_eq(routes_i, routes_j) /* same vehicle */ && route_idx_j == routes_j.len() - 1
                                     {
                                         route_idx_j_after_swap_remove = route_idx_i;
                                     }

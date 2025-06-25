@@ -1,5 +1,5 @@
 use std::error::Error;
-use std::fs::File;
+use std::fs::{self, File};
 use std::io;
 use std::io::Write;
 use std::path::Path;
@@ -41,7 +41,7 @@ impl Logger<'_> {
     pub fn new() -> Result<Self, Box<dyn Error>> {
         let outputs = Path::new(&CONFIG.outputs);
         if !outputs.is_dir() {
-            std::fs::create_dir_all(outputs)?;
+            fs::create_dir_all(outputs)?;
         }
 
         let problem = ExpectedValue::cast(
@@ -128,7 +128,7 @@ impl Logger<'_> {
                 self._iteration,
                 solution.cost(),
                 solution.working_time,
-                solution.feasible as i32,
+                i32::from(solution.feasible),
                 penalty_coeff::<0>(),
                 solution.energy_violation,
                 penalty_coeff::<1>(),

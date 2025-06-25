@@ -18,7 +18,7 @@ impl<T: fmt::Debug> ExpectedValue<T> {
     pub fn cast(value: Option<T>) -> Result<T, Self> {
         match value {
             Some(v) => Ok(v),
-            None => Err(ExpectedValue { value }),
+            None => Err(Self { value }),
         }
     }
 }
