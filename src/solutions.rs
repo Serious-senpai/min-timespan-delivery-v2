@@ -171,50 +171,39 @@ impl Solution {
         let mut served = vec![false; CONFIG.customers_count + 1];
         served[0] = true;
 
-        for routes in &self.truck_routes {
-            if CONFIG.single_truck_route && routes.len() > 1 {
-                panic!("Truck routes {:?} have more than one route", routes);
-            }
-
-            for route in routes {
-                let customers = &route.data().customers;
-                if customers.first() != Some(&0) || customers.last() != Some(&0) {
-                    panic!("Invalid truck route {:?}", customers);
+        fn _check_routes<R>(vehicle_routes: &[Vec<Rc<R>>], served: &mut [bool])
+        where
+            R: Route + fmt::Debug,
+        {
+            for routes in vehicle_routes {
+                if R::single_route() && routes.len() > 1 {
+                    panic!("Vehicle {:?} has more than one route", routes);
                 }
 
-                for &c in customers.iter().skip(1).take(customers.len() - 2) {
-                    if served[c] {
-                        panic!("Customer {} is served more than once", c);
+                for route in routes {
+                    let customers = &route.data().customers;
+
+                    if R::single_customer() && customers.len() != 3 {
+                        panic!("Route {:?} has more than one customer", route);
                     }
 
-                    served[c] = true;
-                }
-            }
-        }
-
-        for routes in &self.drone_routes {
-            for route in routes {
-                if CONFIG.single_drone_route && route.data().customers.len() != 3 {
-                    panic!("Drone route {:?} has more than one customer", route);
-                }
-
-                let customers = &route.data().customers;
-                if customers.first() != Some(&0) || customers.last() != Some(&0) {
-                    panic!("Invalid drone route {:?}", customers);
-                }
-
-                for &c in customers.iter().skip(1).take(customers.len() - 2) {
-                    if served[c] {
-                        panic!("Customer {} is served more than once", c);
+                    if customers.first() != Some(&0) || customers.last() != Some(&0) {
+                        panic!("Invalid route {:?}", customers);
                     }
 
-                    served[c] = true;
-                    if !CONFIG.dronable[c] {
-                        panic!("Customer {} is not dronable", c);
+                    for &c in customers.iter().skip(1).take(customers.len() - 2) {
+                        if served[c] {
+                            panic!("Customer {} is served more than once", c);
+                        }
+
+                        served[c] = true;
                     }
                 }
             }
         }
+
+        _check_routes(&self.truck_routes, &mut served);
+        _check_routes(&self.drone_routes, &mut served);
 
         for (c, s) in served.iter().enumerate() {
             if !s {
@@ -751,16 +740,18 @@ impl Solution {
 
             for truck in 0..truck_routes.len() {
                 // Try appending
-                truck_routes[truck].push(TruckRoute::single(customer));
-                let temp = Self::new(truck_routes, drone_routes);
-                if temp.cost() < min_cost {
-                    min_cost = temp.cost();
-                    insert = (true, true, truck, 0, 0);
-                }
+                if !CONFIG.single_truck_route || truck_routes[truck].is_empty() {
+                    truck_routes[truck].push(TruckRoute::single(customer));
+                    let temp = Self::new(truck_routes, drone_routes);
+                    if temp.cost() < min_cost {
+                        min_cost = temp.cost();
+                        insert = (true, true, truck, 0, 0);
+                    }
 
-                truck_routes = temp.truck_routes;
-                drone_routes = temp.drone_routes;
-                truck_routes[truck].pop();
+                    truck_routes = temp.truck_routes;
+                    drone_routes = temp.drone_routes;
+                    truck_routes[truck].pop();
+                }
 
                 // Try inserting
                 for route in 0..truck_routes[truck].len() {
@@ -803,28 +794,30 @@ impl Solution {
                     drone_routes[drone].pop();
 
                     // Try inserting
-                    for route in 0..drone_routes[drone].len() {
-                        let recover = drone_routes[drone][route].clone();
-                        let customers = &recover.data().customers;
-                        let mut buffer = customers.clone();
+                    if !CONFIG.single_drone_route {
+                        for route in 0..drone_routes[drone].len() {
+                            let recover = drone_routes[drone][route].clone();
+                            let customers = &recover.data().customers;
+                            let mut buffer = customers.clone();
 
-                        buffer.insert(1, customer);
-                        for i in 1..customers.len() - 1 {
-                            drone_routes[drone][route] = DroneRoute::new(buffer.clone());
+                            buffer.insert(1, customer);
+                            for i in 1..customers.len() - 1 {
+                                drone_routes[drone][route] = DroneRoute::new(buffer.clone());
 
-                            let temp = Self::new(truck_routes.clone(), drone_routes.clone());
-                            if temp.cost() < min_cost {
-                                min_cost = temp.cost();
-                                insert = (false, false, drone, route, i);
+                                let temp = Self::new(truck_routes.clone(), drone_routes.clone());
+                                if temp.cost() < min_cost {
+                                    min_cost = temp.cost();
+                                    insert = (false, false, drone, route, i);
+                                }
+
+                                truck_routes = temp.truck_routes;
+                                drone_routes = temp.drone_routes;
+
+                                buffer.swap(i, i + 1);
                             }
 
-                            truck_routes = temp.truck_routes;
-                            drone_routes = temp.drone_routes;
-
-                            buffer.swap(i, i + 1);
+                            drone_routes[drone][route] = recover;
                         }
-
-                        drone_routes[drone][route] = recover;
                     }
                 }
             }
