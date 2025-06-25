@@ -1,5 +1,6 @@
+use std::f64::consts;
+use std::fs;
 use std::sync::LazyLock;
-use std::{f64::consts, fs};
 
 use clap::Parser;
 use regex::{Regex, RegexBuilder};
@@ -180,17 +181,10 @@ impl DroneConfig {
     const W: f64 = 1.5;
     const G: f64 = 9.8;
 
-    fn new(
-        path: &String,
-        config: cli::EnergyModel,
-        speed_type: cli::ConfigType,
-        range_type: cli::ConfigType,
-    ) -> Self {
+    fn new(path: &String, config: cli::EnergyModel, speed_type: cli::ConfigType, range_type: cli::ConfigType) -> Self {
         match config {
             cli::EnergyModel::Linear => {
-                let data =
-                    serde_json::from_str::<_LinearFileJSON>(&fs::read_to_string(path).unwrap())
-                        .unwrap();
+                let data = serde_json::from_str::<_LinearFileJSON>(&fs::read_to_string(path).unwrap()).unwrap();
 
                 for config in [data.item1, data.item2, data.item3, data.item4] {
                     if config.speed_type == speed_type && config.range_type == range_type {
@@ -207,9 +201,7 @@ impl DroneConfig {
                 panic!("No matching linear config")
             }
             cli::EnergyModel::NonLinear => {
-                let data =
-                    serde_json::from_str::<_NonLinearFileJSON>(&fs::read_to_string(path).unwrap())
-                        .unwrap();
+                let data = serde_json::from_str::<_NonLinearFileJSON>(&fs::read_to_string(path).unwrap()).unwrap();
 
                 for config in [data.item1, data.item2, data.item3, data.item4] {
                     if config.speed_type == speed_type && config.range_type == range_type {
@@ -221,10 +213,7 @@ impl DroneConfig {
                         let _vert_half_takeoff_2 = _vert_half_takeoff * _vert_half_takeoff;
                         let _vert_half_landing_2 = _vert_half_landing * _vert_half_landing;
                         let _hori_c12 = data.c1 + data.c2;
-                        let _hori_c4v3 = data.c4
-                            * config.cruise_speed
-                            * config.cruise_speed
-                            * config.cruise_speed;
+                        let _hori_c4v3 = data.c4 * config.cruise_speed * config.cruise_speed * config.cruise_speed;
                         let _hori_c42v4 = data.c4
                             * data.c4
                             * config.cruise_speed
@@ -260,9 +249,7 @@ impl DroneConfig {
                 panic!("No matching non-linear config")
             }
             cli::EnergyModel::Endurance => {
-                let data =
-                    serde_json::from_str::<_EnduranceFileJSON>(&fs::read_to_string(path).unwrap())
-                        .unwrap();
+                let data = serde_json::from_str::<_EnduranceFileJSON>(&fs::read_to_string(path).unwrap()).unwrap();
 
                 for config in [data.item1, data.item2, data.item3, data.item4] {
                     if config.speed_type == speed_type && config.range_type == range_type {
@@ -368,18 +355,14 @@ impl DroneConfig {
 
     pub fn takeoff_time(&self) -> f64 {
         match self {
-            Self::Linear { _takeoff_time, .. } | Self::NonLinear { _takeoff_time, .. } => {
-                *_takeoff_time
-            }
+            Self::Linear { _takeoff_time, .. } | Self::NonLinear { _takeoff_time, .. } => *_takeoff_time,
             Self::Endurance { .. } => 0.0,
         }
     }
 
     pub fn landing_time(&self) -> f64 {
         match self {
-            Self::Linear { _landing_time, .. } | Self::NonLinear { _landing_time, .. } => {
-                *_landing_time
-            }
+            Self::Linear { _landing_time, .. } | Self::NonLinear { _landing_time, .. } => *_landing_time,
             Self::Endurance { .. } => 0.0,
         }
     }
@@ -594,11 +577,10 @@ pub static CONFIG: LazyLock<Config> = LazyLock::new(|| {
             let trucks_count_regex = Regex::new(r"trucks_count (\d+)").unwrap();
             let drones_count_regex = Regex::new(r"drones_count (\d+)").unwrap();
             let depot_regex = Regex::new(r"depot (-?[\d\.]+)\s+(-?[\d\.]+)").unwrap();
-            let customers_regex =
-                RegexBuilder::new(r"^\s*(-?[\d\.]+)\s+(-?[\d\.]+)\s+(0|1)\s+([\d\.]+)\s*$")
-                    .multi_line(true)
-                    .build()
-                    .unwrap();
+            let customers_regex = RegexBuilder::new(r"^\s*(-?[\d\.]+)\s+(-?[\d\.]+)\s+(0|1)\s+([\d\.]+)\s*$")
+                .multi_line(true)
+                .build()
+                .unwrap();
 
             let data = fs::read_to_string(&problem).unwrap();
 
@@ -646,9 +628,7 @@ pub static CONFIG: LazyLock<Config> = LazyLock::new(|| {
             let truck_distances = truck_distance.matrix(&x, &y);
             let drone_distances = drone_distance.matrix(&x, &y);
 
-            let truck =
-                serde_json::from_str::<TruckConfig>(&fs::read_to_string(truck_cfg).unwrap())
-                    .unwrap();
+            let truck = serde_json::from_str::<TruckConfig>(&fs::read_to_string(truck_cfg).unwrap()).unwrap();
             let drone = DroneConfig::new(&drone_cfg, config, speed_type, range_type);
 
             let takeoff = drone.takeoff_time();
@@ -661,18 +641,14 @@ pub static CONFIG: LazyLock<Config> = LazyLock::new(|| {
             for i in 1..customers_count + 1 {
                 dronable[i] = dronable[i]
                     && demands[i] <= drone.capacity()
-                    && takeoff
-                        + drone.cruise_time(drone_distances[0][i] + drone_distances[i][0])
-                        + landing
+                    && takeoff + drone.cruise_time(drone_distances[0][i] + drone_distances[i][0]) + landing
                         <= drone.fixed_time()
                     && (landing_from_depot + drone.landing_power(demands[i])).mul_add(
                         landing,
                         drone.cruise_power(demands[i]).mul_add(
                             drone.cruise_time(drone_distances[i][0]),
-                            (takeoff_from_depot + drone.takeoff_power(demands[i])).mul_add(
-                                takeoff,
-                                cruise_from_depot * drone.cruise_time(drone_distances[0][i]),
-                            ),
+                            (takeoff_from_depot + drone.takeoff_power(demands[i]))
+                                .mul_add(takeoff, cruise_from_depot * drone.cruise_time(drone_distances[0][i])),
                         ),
                     ) <= drone.battery();
             }

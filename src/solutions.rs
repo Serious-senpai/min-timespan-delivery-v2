@@ -65,15 +65,9 @@ where
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct Solution {
-    #[serde(
-        deserialize_with = "_deserialize_routes",
-        serialize_with = "_serialize_routes"
-    )]
+    #[serde(deserialize_with = "_deserialize_routes", serialize_with = "_serialize_routes")]
     pub truck_routes: Vec<Vec<Rc<TruckRoute>>>,
-    #[serde(
-        deserialize_with = "_deserialize_routes",
-        serialize_with = "_serialize_routes"
-    )]
+    #[serde(deserialize_with = "_deserialize_routes", serialize_with = "_serialize_routes")]
     pub drone_routes: Vec<Vec<Rc<DroneRoute>>>,
 
     pub truck_working_time: Vec<f64>,
@@ -124,10 +118,7 @@ fn _update_violation<const N: usize>(violation: f64) {
 }
 
 impl Solution {
-    pub fn new(
-        truck_routes: Vec<Vec<Rc<TruckRoute>>>,
-        drone_routes: Vec<Vec<Rc<DroneRoute>>>,
-    ) -> Self {
+    pub fn new(truck_routes: Vec<Vec<Rc<TruckRoute>>>, drone_routes: Vec<Vec<Rc<DroneRoute>>>) -> Self {
         let mut working_time: f64 = 0.0;
         let mut energy_violation = 0.0;
         let mut capacity_violation = 0.0;
@@ -135,22 +126,14 @@ impl Solution {
         let mut fixed_time_violation = 0.0;
         for routes in &truck_routes {
             working_time = working_time.max(routes.iter().map(|r| r.working_time()).sum());
-            capacity_violation +=
-                routes.iter().map(|r| r.capacity_violation()).sum::<f64>() / CONFIG.truck.capacity;
-            waiting_time_violation += routes
-                .iter()
-                .map(|r| r.waiting_time_violation())
-                .sum::<f64>();
+            capacity_violation += routes.iter().map(|r| r.capacity_violation()).sum::<f64>() / CONFIG.truck.capacity;
+            waiting_time_violation += routes.iter().map(|r| r.waiting_time_violation()).sum::<f64>();
         }
         for routes in &drone_routes {
             working_time = working_time.max(routes.iter().map(|r| r.working_time()).sum::<f64>());
             energy_violation += routes.iter().map(|r| r.energy_violation).sum::<f64>();
-            capacity_violation += routes.iter().map(|r| r.capacity_violation()).sum::<f64>()
-                / CONFIG.drone.capacity();
-            waiting_time_violation += routes
-                .iter()
-                .map(|r| r.waiting_time_violation())
-                .sum::<f64>();
+            capacity_violation += routes.iter().map(|r| r.capacity_violation()).sum::<f64>() / CONFIG.drone.capacity();
+            waiting_time_violation += routes.iter().map(|r| r.waiting_time_violation()).sum::<f64>();
             fixed_time_violation += routes.iter().map(|r| r.fixed_time_violation).sum::<f64>();
         }
 
@@ -242,7 +225,17 @@ impl Solution {
 
     pub fn cost(&self) -> f64 {
         self.working_time
-            * penalty_coeff::<3>().mul_add(self.fixed_time_violation, penalty_coeff::<2>().mul_add(self.waiting_time_violation, penalty_coeff::<1>().mul_add(self.capacity_violation, penalty_coeff::<0>().mul_add(self.energy_violation, 1.0))))
+            * penalty_coeff::<3>()
+                .mul_add(
+                    self.fixed_time_violation,
+                    penalty_coeff::<2>().mul_add(
+                        self.waiting_time_violation,
+                        penalty_coeff::<1>().mul_add(
+                            self.capacity_violation,
+                            penalty_coeff::<0>().mul_add(self.energy_violation, 1.0),
+                        ),
+                    ),
+                )
                 .powf(CONFIG.penalty_exponent)
     }
 
@@ -269,11 +262,7 @@ impl Solution {
         fill_repr(&other.truck_routes, &mut other_repr);
         fill_repr(&other.drone_routes, &mut other_repr);
 
-        self_repr
-            .iter()
-            .zip(other_repr.iter())
-            .filter(|(a, b)| a != b)
-            .count()
+        self_repr.iter().zip(other_repr.iter()).filter(|(a, b)| a != b).count()
     }
 
     pub fn post_optimization(&self) -> Self {
@@ -296,11 +285,7 @@ impl Solution {
     }
 
     pub fn initialize() -> Self {
-        fn _sort_cluster_with_starting_point(
-            cluster: &mut [usize],
-            mut start: usize,
-            distance: &[Vec<f64>],
-        ) {
+        fn _sort_cluster_with_starting_point(cluster: &mut [usize], mut start: usize, distance: &[Vec<f64>]) {
             if cluster.is_empty() {
                 return;
             }
@@ -321,10 +306,7 @@ impl Solution {
             }
         }
 
-        fn _feasible(
-            truck_routes: Vec<Vec<Rc<TruckRoute>>>,
-            drone_routes: Vec<Vec<Rc<DroneRoute>>>,
-        ) -> bool {
+        fn _feasible(truck_routes: Vec<Vec<Rc<TruckRoute>>>, drone_routes: Vec<Vec<Rc<DroneRoute>>>) -> bool {
             let solution = Solution::new(truck_routes, drone_routes);
             solution.feasible
         }
@@ -345,12 +327,7 @@ impl Solution {
         let mut truckable = vec![false; CONFIG.customers_count + 1];
         if CONFIG.trucks_count > 0 {
             truckable[0] = true;
-            for (customer, truckable) in truckable
-                .iter_mut()
-                .enumerate()
-                .skip(1)
-                .take(CONFIG.customers_count)
-            {
+            for (customer, truckable) in truckable.iter_mut().enumerate().skip(1).take(CONFIG.customers_count) {
                 truck_routes[0].push(TruckRoute::single(customer));
                 *truckable = _feasible(truck_routes.clone(), drone_routes.clone());
                 truck_routes[0].pop();
@@ -360,12 +337,7 @@ impl Solution {
         let mut dronable = vec![false; CONFIG.customers_count + 1];
         if CONFIG.drones_count > 0 {
             dronable[0] = true;
-            for (customer, dronable) in dronable
-                .iter_mut()
-                .enumerate()
-                .skip(1)
-                .take(CONFIG.customers_count)
-            {
+            for (customer, dronable) in dronable.iter_mut().enumerate().skip(1).take(CONFIG.customers_count) {
                 if CONFIG.dronable[customer] {
                     drone_routes[0].push(DroneRoute::single(customer));
                     *dronable = _feasible(truck_routes.clone(), drone_routes.clone());
@@ -431,9 +403,7 @@ impl Solution {
                 }
             }
 
-            cluster.sort_by(|&i, &j| {
-                CONFIG.drone_distances[0][i].total_cmp(&CONFIG.drone_distances[0][j])
-            });
+            cluster.sort_by(|&i, &j| CONFIG.drone_distances[0][i].total_cmp(&CONFIG.drone_distances[0][j]));
             for &customer in cluster.iter() {
                 if dronable[customer] {
                     queue.push(_State {
@@ -473,9 +443,7 @@ impl Solution {
 
             if min_idx == 0 {
                 for &customer in global.iter() {
-                    if truckable[customer]
-                        && CONFIG.truck_distances[parent][customer] < min_distance
-                    {
+                    if truckable[customer] && CONFIG.truck_distances[parent][customer] < min_distance {
                         min_distance = CONFIG.truck_distances[parent][customer];
                         min_idx = customer;
                     }
@@ -516,8 +484,7 @@ impl Solution {
 
             if min_idx == 0 {
                 for &customer in global.iter() {
-                    if dronable[customer] && CONFIG.drone_distances[parent][customer] < min_distance
-                    {
+                    if dronable[customer] && CONFIG.drone_distances[parent][customer] < min_distance {
                         min_distance = CONFIG.drone_distances[parent][customer];
                         min_idx = customer;
                     }
@@ -581,11 +548,7 @@ impl Solution {
                                 &global,
                                 &truck_routes,
                                 &mut drone_routes,
-                                if CONFIG.single_drone_route {
-                                    0
-                                } else {
-                                    packed.index
-                                },
+                                if CONFIG.single_drone_route { 0 } else { packed.index },
                                 packed.vehicle,
                             );
                         }
@@ -653,11 +616,7 @@ impl Solution {
                             &global,
                             &truck_routes,
                             &mut drone_routes,
-                            if CONFIG.single_drone_route {
-                                0
-                            } else {
-                                packed.parent
-                            },
+                            if CONFIG.single_drone_route { 0 } else { packed.parent },
                             packed.vehicle,
                         );
                     }
@@ -705,8 +664,7 @@ impl Solution {
                 let customers = &route.data().customers;
                 for i in 1..customers.len() - 1 {
                     let c = customers[i];
-                    scores[c] =
-                        edge_records[customers[i - 1]][c] + edge_records[c][customers[i + 1]];
+                    scores[c] = edge_records[customers[i - 1]][c] + edge_records[c][customers[i + 1]];
                 }
             }
         }
@@ -715,8 +673,7 @@ impl Solution {
                 let customers = &route.data().customers;
                 for i in 1..customers.len() - 1 {
                     let c = customers[i];
-                    scores[c] =
-                        edge_records[customers[i - 1]][c] + edge_records[c][customers[i + 1]];
+                    scores[c] = edge_records[customers[i - 1]][c] + edge_records[c][customers[i + 1]];
                 }
             }
         }
@@ -928,8 +885,7 @@ impl Solution {
 
         if !CONFIG.dry_run {
             let mut current = result.clone();
-            let mut edge_records =
-                vec![vec![f64::MAX; CONFIG.customers_count + 1]; CONFIG.customers_count + 1];
+            let mut edge_records = vec![vec![f64::MAX; CONFIG.customers_count + 1]; CONFIG.customers_count + 1];
             let mut elite_set = vec![];
             elite_set.push(result.clone());
 
@@ -1003,12 +959,9 @@ impl Solution {
                 let neighborhood = NEIGHBORHOODS[neighborhood_idx];
 
                 let old_current = current.clone();
-                if let Some(neighbor) = neighborhood.search(
-                    &current,
-                    &mut tabu_lists[neighborhood_idx],
-                    tabu_size,
-                    result.cost(),
-                ) {
+                if let Some(neighbor) =
+                    neighborhood.search(&current, &mut tabu_lists[neighborhood_idx], tabu_size, result.cost())
+                {
                     let neighbor = Rc::new(neighbor);
                     _record_new_solution(
                         &neighbor,
@@ -1022,8 +975,7 @@ impl Solution {
                     current = neighbor;
                 }
 
-                let reset =
-                    iteration != last_improved && (iteration - last_improved) % reset_after == 0;
+                let reset = iteration != last_improved && (iteration - last_improved) % reset_after == 0;
 
                 if reset {
                     if elite_set.is_empty() {
@@ -1059,11 +1011,7 @@ impl Solution {
 
                         _update_violation_solution(&current);
                         logger
-                            .log(
-                                &current,
-                                Neighborhood::EjectionChain,
-                                &ejection_chain_tabu_list,
-                            )
+                            .log(&current, Neighborhood::EjectionChain, &ejection_chain_tabu_list)
                             .unwrap();
                     }
                 } else {
@@ -1100,9 +1048,7 @@ impl Solution {
             result = Rc::new(result.post_optimization());
         }
 
-        logger
-            .finalize(&result, tabu_size, reset_after, last_improved)
-            .unwrap();
+        logger.finalize(&result, tabu_size, reset_after, last_improved).unwrap();
 
         Self::clone(&result)
     }

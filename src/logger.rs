@@ -58,9 +58,7 @@ impl Logger<'_> {
         let mut writer = if CONFIG.disable_logging {
             None
         } else {
-            Some(File::create(
-                outputs.join(format!("{}-{}.csv", problem, id)),
-            )?)
+            Some(File::create(outputs.join(format!("{}-{}.csv", problem, id)))?)
         };
 
         if let Some(ref mut writer) = writer {
@@ -159,9 +157,7 @@ impl Logger<'_> {
         let elapsed = SystemTime::now().duration_since(UNIX_EPOCH).unwrap() - self._time_offset;
         let serialized_config = SerializedConfig::from(CONFIG.clone());
 
-        let json_path = self
-            ._outputs
-            .join(format!("{}-{}.json", self._problem, self._id));
+        let json_path = self._outputs.join(format!("{}-{}.json", self._problem, self._id));
         let mut json = File::create(&json_path)?;
         println!("{}", json_path.display());
         json.write_all(

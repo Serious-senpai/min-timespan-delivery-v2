@@ -82,10 +82,7 @@ pub trait Route: Sized {
     ///
     /// Note that if the current route becomes empty after extracting the subsegment, the result set will be
     /// empty.
-    fn inter_route_extract<T>(
-        &self,
-        neighborhood: Neighborhood,
-    ) -> Vec<(Rc<Self>, Rc<T>, Vec<usize>)>
+    fn inter_route_extract<T>(&self, neighborhood: Neighborhood) -> Vec<(Rc<Self>, Rc<T>, Vec<usize>)>
     where
         T: Route,
     {
@@ -155,9 +152,7 @@ pub trait Route: Sized {
 
         match neighborhood {
             Neighborhood::Move10 => {
-                for (idx_i, &customer_i) in
-                    customers_i.iter().enumerate().take(length_i - 1).skip(1)
-                {
+                for (idx_i, &customer_i) in customers_i.iter().enumerate().take(length_i - 1).skip(1) {
                     if !T::_servable(customer_i) {
                         continue;
                     }
@@ -271,9 +266,7 @@ pub trait Route: Sized {
                     }
 
                     for idx_j in 1..length_j - 2 {
-                        if !Self::_servable(buffer_j[idx_j])
-                            || !Self::_servable(buffer_j[idx_j + 1])
-                        {
+                        if !Self::_servable(buffer_j[idx_j]) || !Self::_servable(buffer_j[idx_j + 1]) {
                             continue;
                         }
 
@@ -324,10 +317,7 @@ pub trait Route: Sized {
                     }
                 }
             }
-            _ => panic!(
-                "inter_route called with invalid neighborhood {}",
-                neighborhood
-            ),
+            _ => panic!("inter_route called with invalid neighborhood {}", neighborhood),
         }
 
         results
@@ -394,10 +384,7 @@ pub trait Route: Sized {
                     buffer_i.insert(idx_i, remove_x);
                 }
             }
-            _ => panic!(
-                "inter_route_3 called with invalid neighborhood {}",
-                neighborhood
-            ),
+            _ => panic!("inter_route_3 called with invalid neighborhood {}", neighborhood),
         }
 
         results
@@ -490,11 +477,7 @@ pub trait Route: Sized {
                         buffer.swap(i, j);
 
                         let ptr = Self::new(buffer.clone());
-                        let tabu = vec![
-                            data.customers[i],
-                            data.customers[i + 1],
-                            data.customers[j + 2],
-                        ];
+                        let tabu = vec![data.customers[i], data.customers[i + 1], data.customers[j + 2]];
                         // println!("buffer = {:?}, tabu = {:?}", buffer, tabu);
                         results.push((ptr, tabu));
                     }
@@ -510,8 +493,7 @@ pub trait Route: Sized {
                         buffer.swap(j + 2, i + 1);
 
                         let ptr = Self::new(buffer.clone());
-                        let tabu =
-                            vec![data.customers[i], data.customers[i + 1], data.customers[j]];
+                        let tabu = vec![data.customers[i], data.customers[i + 1], data.customers[j]];
                         // println!("buffer = {:?}, tabu = {:?}", buffer, tabu);
                         results.push((ptr, tabu));
                     }
@@ -581,10 +563,7 @@ pub trait Route: Sized {
                     buffer[i..length - 1].reverse();
                 }
             }
-            _ => panic!(
-                "intra_route called with invalid neighborhood {}",
-                neighborhood
-            ),
+            _ => panic!("intra_route called with invalid neighborhood {}", neighborhood),
         }
 
         for (_, tabu) in results.iter_mut() {
@@ -668,8 +647,7 @@ impl TruckRoute {
         let mut accumulate_time = 0.0;
         for i in 1..customers.len() - 1 {
             accumulate_time += CONFIG.truck_distances[customers[i - 1]][customers[i]] / speed;
-            waiting_time_violation +=
-                (working_time - accumulate_time - CONFIG.waiting_time_limit).max(0.0);
+            waiting_time_violation += (working_time - accumulate_time - CONFIG.waiting_time_limit).max(0.0);
         }
 
         waiting_time_violation
@@ -679,8 +657,7 @@ impl TruckRoute {
         let speed = CONFIG.truck.speed;
         let _working_time = data.value.distance / speed;
         let _capacity_violation = (data.value.weight - CONFIG.truck.capacity).max(0.0);
-        let _waiting_time_violation =
-            Self::_calculate_waiting_time_violation(&data.customers, _working_time);
+        let _waiting_time_violation = Self::_calculate_waiting_time_violation(&data.customers, _working_time);
 
         Self {
             _data: data,
