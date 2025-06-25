@@ -2,7 +2,6 @@ use std::fs;
 
 use clap::Parser;
 use colored::Colorize;
-
 use routes::Route;
 
 mod cli;

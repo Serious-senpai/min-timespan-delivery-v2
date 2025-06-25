@@ -1,5 +1,5 @@
 use std::error::Error;
-use std::fs::File;
+use std::fs::{self, File};
 use std::io;
 use std::io::Write;
 use std::path::Path;
@@ -41,7 +41,7 @@ impl Logger<'_> {
     pub fn new() -> Result<Self, Box<dyn Error>> {
         let outputs = Path::new(&CONFIG.outputs);
         if !outputs.is_dir() {
-            std::fs::create_dir_all(outputs)?;
+            fs::create_dir_all(outputs)?;
         }
 
         let problem = ExpectedValue::cast(
@@ -58,9 +58,7 @@ impl Logger<'_> {
         let mut writer = if CONFIG.disable_logging {
             None
         } else {
-            Some(File::create(
-                outputs.join(format!("{}-{}.csv", problem, id)),
-            )?)
+            Some(File::create(outputs.join(format!("{}-{}.csv", problem, id)))?)
         };
 
         if let Some(ref mut writer) = writer {
@@ -128,7 +126,7 @@ impl Logger<'_> {
                 self._iteration,
                 solution.cost(),
                 solution.working_time,
-                solution.feasible as i32,
+                i32::from(solution.feasible),
                 penalty_coeff::<0>(),
                 solution.energy_violation,
                 penalty_coeff::<1>(),
@@ -159,9 +157,7 @@ impl Logger<'_> {
         let elapsed = SystemTime::now().duration_since(UNIX_EPOCH).unwrap() - self._time_offset;
         let serialized_config = SerializedConfig::from(CONFIG.clone());
 
-        let json_path = self
-            ._outputs
-            .join(format!("{}-{}.json", self._problem, self._id));
+        let json_path = self._outputs.join(format!("{}-{}.json", self._problem, self._id));
         let mut json = File::create(&json_path)?;
         println!("{}", json_path.display());
         json.write_all(
