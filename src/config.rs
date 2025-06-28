@@ -47,21 +47,6 @@ pub struct LinearJSON {
     gamma: f64,
 }
 
-#[derive(Debug, Deserialize)]
-struct _LinearFileJSON {
-    #[serde(rename = "1")]
-    item1: LinearJSON,
-
-    #[serde(rename = "2")]
-    item2: LinearJSON,
-
-    #[serde(rename = "3")]
-    item3: LinearJSON,
-
-    #[serde(rename = "4")]
-    item4: LinearJSON,
-}
-
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct NonLinearJSON {
     #[serde(rename = "takeoffSpeed [m/s]")]
@@ -88,18 +73,7 @@ pub struct NonLinearJSON {
 
 #[derive(Debug, Deserialize)]
 struct _NonLinearFileJSON {
-    #[serde(rename = "1")]
-    item1: NonLinearJSON,
-
-    #[serde(rename = "2")]
-    item2: NonLinearJSON,
-
-    #[serde(rename = "3")]
-    item3: NonLinearJSON,
-
-    #[serde(rename = "4")]
-    item4: NonLinearJSON,
-
+    config: Vec<NonLinearJSON>,
     k1: f64,
 
     #[serde(rename = "k2 (sqrt(kg/m))")]
@@ -131,21 +105,6 @@ pub struct EnduranceJSON {
 
     #[serde(rename = "V_max (m/s)")]
     speed: f64,
-}
-
-#[derive(Debug, Deserialize)]
-struct _EnduranceFileJSON {
-    #[serde(rename = "1")]
-    item1: EnduranceJSON,
-
-    #[serde(rename = "2")]
-    item2: EnduranceJSON,
-
-    #[serde(rename = "3")]
-    item3: EnduranceJSON,
-
-    #[serde(rename = "4")]
-    item4: EnduranceJSON,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -184,9 +143,9 @@ impl DroneConfig {
     fn new(path: &String, config: cli::EnergyModel, speed_type: cli::ConfigType, range_type: cli::ConfigType) -> Self {
         match config {
             cli::EnergyModel::Linear => {
-                let data = serde_json::from_str::<_LinearFileJSON>(&fs::read_to_string(path).unwrap()).unwrap();
+                let data = serde_json::from_str::<Vec<LinearJSON>>(&fs::read_to_string(path).unwrap()).unwrap();
 
-                for config in [data.item1, data.item2, data.item3, data.item4] {
+                for config in data {
                     if config.speed_type == speed_type && config.range_type == range_type {
                         let _takeoff_time = config.altitude / config.takeoff_speed;
                         let _landing_time = config.altitude / config.landing_speed;
@@ -203,7 +162,7 @@ impl DroneConfig {
             cli::EnergyModel::NonLinear => {
                 let data = serde_json::from_str::<_NonLinearFileJSON>(&fs::read_to_string(path).unwrap()).unwrap();
 
-                for config in [data.item1, data.item2, data.item3, data.item4] {
+                for config in data.config {
                     if config.speed_type == speed_type && config.range_type == range_type {
                         let _vert_k1 = data.k1 * Self::G;
                         let _vert_k2 = Self::G / (data.k2 * data.k2);
@@ -249,9 +208,9 @@ impl DroneConfig {
                 panic!("No matching non-linear config")
             }
             cli::EnergyModel::Endurance => {
-                let data = serde_json::from_str::<_EnduranceFileJSON>(&fs::read_to_string(path).unwrap()).unwrap();
+                let data = serde_json::from_str::<Vec<EnduranceJSON>>(&fs::read_to_string(path).unwrap()).unwrap();
 
-                for config in [data.item1, data.item2, data.item3, data.item4] {
+                for config in data {
                     if config.speed_type == speed_type && config.range_type == range_type {
                         return Self::Endurance { _data: config };
                     }

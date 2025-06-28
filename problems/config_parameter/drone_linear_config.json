@@ -1,5 +1,5 @@
-{
-    "1": {
+[
+    {
         "takeoffSpeed [m/s]": 15.6464,
         "cruiseSpeed [m/s]": 31.2928,
         "landingSpeed [m/s]": 7.8232,
@@ -11,7 +11,7 @@
         "beta(w/kg)": 24.2,
         "gamma(w)": 1392
     },
-    "2": {
+    {
         "takeoffSpeed [m/s]": 15.6464,
         "cruiseSpeed [m/s]": 31.2928,
         "landingSpeed [m/s]": 7.8232,
@@ -23,7 +23,7 @@
         "beta(w/kg)": 24.2,
         "gamma(w)": 1392
     },
-    "3": {
+    {
         "takeoffSpeed [m/s]": 7.8232,
         "cruiseSpeed [m/s]": 15.6464,
         "landingSpeed [m/s]": 3.9116,
@@ -35,7 +35,7 @@
         "beta(w/kg)": 210.8,
         "gamma(w)": 181.2
     },
-    "4": {
+    {
         "takeoffSpeed [m/s]": 7.8232,
         "cruiseSpeed [m/s]": 15.6464,
         "landingSpeed [m/s]": 3.9116,
@@ -47,4 +47,4 @@
         "beta(w/kg)": 210.8,
         "gamma(w)": 181.2
     }
-}
+]

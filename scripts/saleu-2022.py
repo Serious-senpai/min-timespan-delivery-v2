@@ -94,28 +94,28 @@ if __name__ == "__main__":
             "V_max (m/s)": 1,
         }
         json.dump(
-            {
-                "1": {
+            [
+                {
                     "speed_type": "low",
                     "range_type": "low",
                     **common,
                 },
-                "2": {
+                {
                     "speed_type": "low",
                     "range_type": "high",
                     **common,
                 },
-                "3": {
+                {
                     "speed_type": "high",
                     "range_type": "low",
                     **common,
                 },
-                "4": {
+                {
                     "speed_type": "high",
                     "range_type": "high",
                     **common,
                 },
-            },
+            ],
             drone,
             indent=4,
             ensure_ascii=False,
