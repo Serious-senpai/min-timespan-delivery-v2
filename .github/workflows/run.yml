@@ -45,7 +45,9 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        steps: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+        reset-after-factor: [25, 50, 75, 100, 125, 150]
+        max-elite-size: [0, 5, 10, 15, 20, 25]
+        steps: [0, 1, 2, 3, 4]
 
     steps:
       - name: Checkout repository
@@ -66,8 +68,8 @@ jobs:
         run: |
           exitcode=0
           set +e
-          let begin=${{ matrix.steps }}+1
-          let end=$begin+0
+          let begin=2*${{ matrix.steps }}+1
+          let end=$begin+1
 
           execute() {
             command=$1
@@ -86,7 +88,7 @@ jobs:
             echo "RUN #$i"
             for path in $(find problems/data/*)
             do
-              execute "./min-timespan-delivery run $path --disable-logging --extra ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+              execute "./min-timespan-delivery run $path --reset-after-factor ${{ matrix.reset-after-factor }} --max-elite-size ${{ matrix.max-elite-size }} --ejection-chain-iterations 0 --destroy-rate 0 --disable-logging --extra ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
             done
           done
 
@@ -96,7 +98,7 @@ jobs:
         uses: actions/upload-artifact@v4
         if: ${{ always() }}
         with:
-          name: output-${{ matrix.steps }}
+          name: output-${{ matrix.reset-after-factor }}-${{ matrix.max-elite-size }}-${{ matrix.steps }}
           path: outputs/*
 
   summary:
