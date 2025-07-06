@@ -161,7 +161,7 @@ pub enum Commands {
         config: EnergyModel,
 
         /// Tabu size of each neighborhood, final value = a1 * base
-        #[arg(long, default_value_t = 0.5)]
+        #[arg(long, default_value_t = 0.75)]
         tabu_size_factor: f64,
 
         /// The number of ejection chain iterations to run when the elite set is popped
