@@ -45,6 +45,15 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
+        fix-adaptive-segments: [20]
+        settings: [
+          {adaptive-iterations: 100, flags: ""},
+          {adaptive-iterations: 200, flags: ""},
+          {adaptive-iterations: 300, flags: ""},
+          {adaptive-iterations: 10, flags: "--adaptive-dynamic-iterations"},
+          {adaptive-iterations: 15, flags: "--adaptive-dynamic-iterations"},
+          {adaptive-iterations: 20, flags: "--adaptive-dynamic-iterations"},
+        ]
         steps: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 
     steps:
@@ -86,7 +95,7 @@ jobs:
             echo "RUN #$i"
             for path in $(find problems/data/*)
             do
-              execute "./min-timespan-delivery run $path --disable-logging --extra ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+              execute "./min-timespan-delivery run $path --strategy adaptive --fix-adaptive-segments ${{ matrix.fix-adaptive-segments }} --adaptive-iterations ${{ matrix.settings.adaptive-iterations }} ${{ matrix.settings.flags }} --disable-logging --extra ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
             done
           done
 
@@ -96,7 +105,7 @@ jobs:
         uses: actions/upload-artifact@v4
         if: ${{ always() }}
         with:
-          name: output-${{ matrix.steps }}
+          name: output-${{ matrix.fix-adaptive-segments }}-${{ matrix.settings.adaptive-iterations }}-${{ matrix.settings.flags }}-${{ matrix.steps }}
           path: outputs/*
 
   summary:
