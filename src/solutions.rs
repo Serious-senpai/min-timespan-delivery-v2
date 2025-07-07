@@ -882,7 +882,8 @@ impl Solution {
 
         let mut result = Rc::new(root);
         let mut last_improved = 0;
-        let mut adaptive_segments = 0;
+        let mut segment = 0;
+        let mut last_improved_segment = 0;
 
         if !CONFIG.dry_run {
             let mut current = result.clone();
@@ -912,13 +913,16 @@ impl Solution {
                 neighbor: &Rc<Solution>,
                 result: &mut Rc<Solution>,
                 last_improved: &mut usize,
+                last_improved_segment: &mut usize,
                 iteration: usize,
+                segment: usize,
                 edge_records: &mut [Vec<f64>],
                 elite_set: &mut Vec<Rc<Solution>>,
             ) {
                 if neighbor.cost() < result.cost() && neighbor.feasible {
                     *result = neighbor.clone();
                     *last_improved = iteration;
+                    *last_improved_segment = segment;
 
                     for routes in &neighbor.truck_routes {
                         for route in routes {
@@ -992,7 +996,9 @@ impl Solution {
                         &neighbor,
                         &mut result,
                         &mut last_improved,
+                        &mut last_improved_segment,
                         iteration,
+                        segment,
                         &mut edge_records,
                         &mut elite_set,
                     );
@@ -1030,7 +1036,9 @@ impl Solution {
                                 &current,
                                 &mut result,
                                 &mut last_improved,
+                                &mut last_improved_segment,
                                 iteration,
+                                segment,
                                 &mut edge_records,
                                 &mut elite_set,
                             );
@@ -1073,8 +1081,19 @@ impl Solution {
                         };
 
                         if reset {
-                            adaptive_segments += 1;
-                            if Some(adaptive_segments) == CONFIG.fix_adaptive_segments {
+                            segment += 1;
+                            if CONFIG.fix_nonimp_segments {
+                                match CONFIG.fix_adaptive_segments {
+                                    Some(fix_adaptive_segments) => {
+                                        if segment - last_improved_segment >= fix_adaptive_segments {
+                                            break;
+                                        }
+                                    }
+                                    None => {
+                                        panic!("--fix-nonimp-segments without --fix-adaptive-segments is not allowed");
+                                    }
+                                }
+                            } else if Some(segment) == CONFIG.fix_adaptive_segments {
                                 break;
                             }
 
@@ -1110,7 +1129,7 @@ impl Solution {
                 tabu_size,
                 reset_after,
                 adaptive_iterations,
-                adaptive_segments,
+                segment,
                 last_improved,
             )
             .unwrap();

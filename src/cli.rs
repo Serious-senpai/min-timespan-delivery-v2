@@ -172,6 +172,7 @@ pub enum Commands {
         #[arg(long, default_value_t = 500)]
         adaptive_iterations: usize,
 
+        /// Infer --adaptive-iterations as number of non-improved iterations per adaptive segment.
         /// Number of non-improved iterations per adaptive segment = [--adaptive-iterations] * [Base]
         #[arg(long)]
         adaptive_dynamic_iterations: bool,
@@ -224,6 +225,10 @@ pub enum Commands {
         /// Fix the number of adaptive segments if strategy is set to "adaptive" (ignore "--fix-iteration")
         #[arg(long)]
         fix_adaptive_segments: Option<usize>,
+
+        /// Infer --fix-adaptive-segments as the number of non-improved iterations per adaptive segment.
+        #[arg(long)]
+        fix_nonimp_segments: bool,
 
         /// The number of non-improved iterations before resetting the current solution = [--reset-after-factor] * [Base]
         #[arg(long, default_value_t = 125.0)]
