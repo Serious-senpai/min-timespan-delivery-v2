@@ -109,7 +109,7 @@ if __name__ == "__main__":
                 "adaptive_iterations INTEGER NOT NULL",
                 "actual_adaptive_iterations INTEGER NOT NULL",
                 "adaptive_dynamic_iterations INTEGER NOT NULL",
-                "fixed_adaptive_segments INTEGER NOT NULL",
+                "fixed_adaptive_segments INTEGER",
                 "fixed_nonimp_segments INTEGER NOT NULL",
                 "tabu_size INTEGER NOT NULL",
                 "reset_after INTEGER NOT NULL",
