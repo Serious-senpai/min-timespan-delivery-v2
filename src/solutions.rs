@@ -869,7 +869,12 @@ impl Solution {
         }
         let base_hyperparameter = CONFIG.customers_count as f64 / total_vehicle as f64;
         let tabu_size = (CONFIG.tabu_size_factor * base_hyperparameter) as usize;
-        let reset_after = if CONFIG.fix_iteration.is_some() {
+        let adaptive_iterations = if CONFIG.adaptive_dynamic_iterations {
+            CONFIG.adaptive_iterations * base_hyperparameter as usize
+        } else {
+            CONFIG.adaptive_iterations
+        };
+        let reset_after = if CONFIG.fix_iteration.is_some() || CONFIG.fix_adaptive_segments.is_some() {
             i64::MAX as usize // usize::MAX cannot be stored in SQLite
         } else {
             (CONFIG.reset_after_factor * base_hyperparameter) as usize
@@ -877,6 +882,7 @@ impl Solution {
 
         let mut result = Rc::new(root);
         let mut last_improved = 0;
+        let mut adaptive_segments = 0;
 
         if !CONFIG.dry_run {
             let mut current = result.clone();
@@ -886,9 +892,17 @@ impl Solution {
 
             let mut neighborhood_idx = 0;
 
-            let iteration_range = match CONFIG.fix_iteration {
-                Some(iteration) => 1..iteration + 1,
-                None => 1..usize::MAX,
+            let iteration_range = || {
+                if let Strategy::Adaptive = CONFIG.strategy {
+                    if CONFIG.fix_adaptive_segments.is_some() {
+                        return 1..usize::MAX;
+                    }
+                }
+
+                match CONFIG.fix_iteration {
+                    Some(iteration) => 1..iteration + 1,
+                    None => 1..usize::MAX,
+                }
             };
             let mut rng = rand::rng();
 
@@ -938,10 +952,12 @@ impl Solution {
                 _update_violation::<3>(s.fixed_time_violation);
             }
 
+            // For adaptive strategy
             let mut scores = vec![0.0; NEIGHBORHOODS.len()];
             let mut weights = vec![1.0; NEIGHBORHOODS.len()];
             let mut occurences = vec![0; NEIGHBORHOODS.len()];
-            for iteration in iteration_range {
+
+            for iteration in iteration_range() {
                 if CONFIG.verbose {
                     eprint!(
                         "Iteration #{} (reset in {}): {:.2}/{:.2}, elite set {}/{}     \r",
@@ -1050,7 +1066,18 @@ impl Solution {
                         }
                     }
                     Strategy::Adaptive => {
-                        if iteration % 500 == 0 {
+                        let reset = if CONFIG.adaptive_dynamic_iterations {
+                            iteration != last_improved && (iteration - last_improved) % adaptive_iterations == 0
+                        } else {
+                            iteration > 0 && iteration % adaptive_iterations == 0
+                        };
+
+                        if reset {
+                            adaptive_segments += 1;
+                            if Some(adaptive_segments) == CONFIG.fix_adaptive_segments {
+                                break;
+                            }
+
                             for neighborhood_idx in 0..NEIGHBORHOODS.len() {
                                 if occurences[neighborhood_idx] > 0 {
                                     weights[neighborhood_idx] = 0.7 * weights[neighborhood_idx]
@@ -1075,7 +1102,16 @@ impl Solution {
             result = Rc::new(result.post_optimization());
         }
 
-        logger.finalize(&result, tabu_size, reset_after, last_improved).unwrap();
+        logger
+            .finalize(
+                &result,
+                tabu_size,
+                reset_after,
+                adaptive_iterations,
+                adaptive_segments,
+                last_improved,
+            )
+            .unwrap();
 
         Self::clone(&result)
     }

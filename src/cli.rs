@@ -163,9 +163,17 @@ pub enum Commands {
         #[arg(short, long, default_value_t = EnergyModel::Endurance)]
         config: EnergyModel,
 
-        /// Tabu size of each neighborhood, final value = a1 * base
+        /// Tabu size of each neighborhood, final value = [--tabu-size-factor] * [Base]
         #[arg(long, default_value_t = 0.75)]
         tabu_size_factor: f64,
+
+        /// Number of interations per adaptive segment (if strategy is set to "adaptive")
+        #[arg(long, default_value_t = 500)]
+        adaptive_iterations: usize,
+
+        /// Number of non-improved iterations per adaptive segment = [--adaptive-iterations] * [Base]
+        #[arg(long)]
+        adaptive_dynamic_iterations: bool,
 
         /// The number of ejection chain iterations to run when the elite set is popped
         #[arg(long, default_value_t = 1)]
@@ -212,11 +220,15 @@ pub enum Commands {
         #[arg(long)]
         fix_iteration: Option<usize>,
 
-        /// The number of non-improved iterations before resetting the current solution = a2 * base
+        /// Fix the number of adaptive segments if strategy is set to "adaptive" (ignore "--fix-iteration")
+        #[arg(long)]
+        fix_adaptive_segments: Option<usize>,
+
+        /// The number of non-improved iterations before resetting the current solution = [--reset-after-factor] * [Base]
         #[arg(long, default_value_t = 125.0)]
         reset_after_factor: f64,
 
-        /// The maximum size of the elite set = a3
+        /// The maximum size of the elite set
         #[arg(long, default_value_t = 15)]
         max_elite_size: usize,
 
