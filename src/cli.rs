@@ -60,6 +60,8 @@ pub enum Strategy {
     Cyclic,
     #[serde(rename = "vns")]
     Vns,
+    #[serde(rename = "adaptive")]
+    Adaptive,
 }
 
 impl fmt::Display for Strategy {
@@ -71,6 +73,7 @@ impl fmt::Display for Strategy {
                 Self::Random => "random",
                 Self::Cyclic => "cyclic",
                 Self::Vns => "vns",
+                Self::Adaptive => "adaptive",
             }
         )
     }

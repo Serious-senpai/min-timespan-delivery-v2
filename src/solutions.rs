@@ -5,6 +5,8 @@ use std::sync::atomic::Ordering;
 use std::sync::LazyLock;
 use std::{cmp, fmt};
 
+use rand::distr::weighted::WeightedIndex;
+use rand::prelude::*;
 use rand::seq::SliceRandom;
 use rand::{rng, Rng};
 use serde::de::{SeqAccess, Visitor};
@@ -936,6 +938,9 @@ impl Solution {
                 _update_violation::<3>(s.fixed_time_violation);
             }
 
+            let mut scores = vec![0.0; NEIGHBORHOODS.len()];
+            let mut weights = vec![1.0; NEIGHBORHOODS.len()];
+            let mut occurences = vec![0; NEIGHBORHOODS.len()];
             for iteration in iteration_range {
                 if CONFIG.verbose {
                     eprint!(
@@ -956,6 +961,17 @@ impl Solution {
                     neighborhood.search(&current, &mut tabu_lists[neighborhood_idx], tabu_size, result.cost())
                 {
                     let neighbor = Rc::new(neighbor);
+                    // Update `scores` and `weights`
+                    if neighbor.feasible {
+                        if neighbor.cost() < result.cost() {
+                            scores[neighborhood_idx] += 0.5;
+                        } else if neighbor.cost() < current.cost() {
+                            scores[neighborhood_idx] += 0.3;
+                        } else {
+                            scores[neighborhood_idx] += 0.1;
+                        }
+                    }
+
                     _record_new_solution(
                         &neighbor,
                         &mut result,
@@ -967,6 +983,8 @@ impl Solution {
 
                     current = neighbor;
                 }
+
+                occurences[neighborhood_idx] += 1;
 
                 let reset = iteration != last_improved && (iteration - last_improved) % reset_after == 0;
 
@@ -1030,6 +1048,22 @@ impl Solution {
                                 current = old_current;
                             }
                         }
+                    }
+                    Strategy::Adaptive => {
+                        if iteration % 500 == 0 {
+                            for neighborhood_idx in 0..NEIGHBORHOODS.len() {
+                                if occurences[neighborhood_idx] > 0 {
+                                    weights[neighborhood_idx] = 0.7 * weights[neighborhood_idx]
+                                        + 0.3 * scores[neighborhood_idx] / occurences[neighborhood_idx] as f64;
+                                }
+
+                                scores[neighborhood_idx] = 0.0;
+                                occurences[neighborhood_idx] = 0;
+                            }
+                        }
+
+                        let dist = WeightedIndex::new(&weights).unwrap();
+                        neighborhood_idx = dist.sample(&mut rng);
                     }
                 }
             }
