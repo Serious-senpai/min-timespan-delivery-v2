@@ -135,6 +135,7 @@ pub struct Arguments {
     pub command: Commands,
 }
 
+#[allow(clippy::large_enum_variant)] // This struct is mostly a singleton
 #[derive(Debug, Subcommand)]
 pub enum Commands {
     /// Evaluate an existing solution

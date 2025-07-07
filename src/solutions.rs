@@ -1080,8 +1080,10 @@ impl Solution {
 
                             for neighborhood_idx in 0..NEIGHBORHOODS.len() {
                                 if occurences[neighborhood_idx] > 0 {
-                                    weights[neighborhood_idx] = 0.7 * weights[neighborhood_idx]
-                                        + 0.3 * scores[neighborhood_idx] / occurences[neighborhood_idx] as f64;
+                                    weights[neighborhood_idx] = 0.7f64.mul_add(
+                                        weights[neighborhood_idx],
+                                        0.3 * scores[neighborhood_idx] / f64::from(occurences[neighborhood_idx]),
+                                    );
                                 }
 
                                 scores[neighborhood_idx] = 0.0;
