@@ -869,21 +869,36 @@ impl Solution {
         }
         let base_hyperparameter = CONFIG.customers_count as f64 / total_vehicle as f64;
         let tabu_size = (CONFIG.tabu_size_factor * base_hyperparameter) as usize;
-        let adaptive_iterations = if CONFIG.adaptive_dynamic_iterations {
-            CONFIG.adaptive_iterations * base_hyperparameter as usize
-        } else {
+        let adaptive_iterations = if CONFIG.adaptive_fixed_iterations {
             CONFIG.adaptive_iterations
+        } else {
+            CONFIG.adaptive_iterations * base_hyperparameter as usize
         };
-        let reset_after = if CONFIG.fix_iteration.is_some() || CONFIG.fix_adaptive_segments.is_some() {
+        let reset_after = if CONFIG.fix_iteration.is_some() {
             i64::MAX as usize // usize::MAX cannot be stored in SQLite
         } else {
             (CONFIG.reset_after_factor * base_hyperparameter) as usize
         };
 
         let mut result = Rc::new(root);
-        let mut last_improved = 0;
-        let mut segment = 0;
-        let mut last_improved_segment = 0;
+
+        let mut last_improved_iteration = 0;
+
+        struct _AdaptiveState {
+            segment: usize,
+            last_improved_segment: usize,
+            scores: Vec<f64>,
+            weights: Vec<f64>,
+            occurences: Vec<u32>,
+        }
+
+        let mut adaptive = _AdaptiveState {
+            segment: 0,
+            last_improved_segment: 0,
+            scores: vec![0.0; NEIGHBORHOODS.len()],
+            weights: vec![1.0; NEIGHBORHOODS.len()],
+            occurences: vec![0; NEIGHBORHOODS.len()],
+        };
 
         if !CONFIG.dry_run {
             let mut current = result.clone();
@@ -893,17 +908,9 @@ impl Solution {
 
             let mut neighborhood_idx = 0;
 
-            let iteration_range = || {
-                if let Strategy::Adaptive = CONFIG.strategy {
-                    if CONFIG.fix_adaptive_segments.is_some() {
-                        return 1..usize::MAX;
-                    }
-                }
-
-                match CONFIG.fix_iteration {
-                    Some(iteration) => 1..iteration + 1,
-                    None => 1..usize::MAX,
-                }
+            let iteration_range = match CONFIG.fix_iteration {
+                Some(iteration) => 1..iteration + 1,
+                None => 1..usize::MAX,
             };
             let mut rng = rand::rng();
 
@@ -912,7 +919,7 @@ impl Solution {
             fn _record_new_solution(
                 neighbor: &Rc<Solution>,
                 result: &mut Rc<Solution>,
-                last_improved: &mut usize,
+                last_improved_iteration: &mut usize,
                 last_improved_segment: &mut usize,
                 iteration: usize,
                 segment: usize,
@@ -921,7 +928,7 @@ impl Solution {
             ) {
                 if neighbor.cost() < result.cost() && neighbor.feasible {
                     *result = neighbor.clone();
-                    *last_improved = iteration;
+                    *last_improved_iteration = iteration;
                     *last_improved_segment = segment;
 
                     for routes in &neighbor.truck_routes {
@@ -956,17 +963,12 @@ impl Solution {
                 _update_violation::<3>(s.fixed_time_violation);
             }
 
-            // For adaptive strategy
-            let mut scores = vec![0.0; NEIGHBORHOODS.len()];
-            let mut weights = vec![1.0; NEIGHBORHOODS.len()];
-            let mut occurences = vec![0; NEIGHBORHOODS.len()];
-
-            for iteration in iteration_range() {
+            for iteration in iteration_range {
                 if CONFIG.verbose {
                     eprint!(
                         "Iteration #{} (reset in {}): {:.2}/{:.2}, elite set {}/{}     \r",
                         iteration,
-                        reset_after.saturating_sub((iteration - last_improved) % reset_after),
+                        reset_after.saturating_sub((iteration - last_improved_iteration) % reset_after),
                         current.cost(),
                         result.cost(),
                         elite_set.len(),
@@ -984,21 +986,21 @@ impl Solution {
                     // Update `scores` and `weights`
                     if neighbor.feasible {
                         if neighbor.cost() < result.cost() {
-                            scores[neighborhood_idx] += 0.5;
+                            adaptive.scores[neighborhood_idx] += 0.5;
                         } else if neighbor.cost() < current.cost() {
-                            scores[neighborhood_idx] += 0.3;
+                            adaptive.scores[neighborhood_idx] += 0.3;
                         } else {
-                            scores[neighborhood_idx] += 0.1;
+                            adaptive.scores[neighborhood_idx] += 0.1;
                         }
                     }
 
                     _record_new_solution(
                         &neighbor,
                         &mut result,
-                        &mut last_improved,
-                        &mut last_improved_segment,
+                        &mut last_improved_iteration,
+                        &mut adaptive.last_improved_segment,
                         iteration,
-                        segment,
+                        adaptive.segment,
                         &mut edge_records,
                         &mut elite_set,
                     );
@@ -1006,9 +1008,28 @@ impl Solution {
                     current = neighbor;
                 }
 
-                occurences[neighborhood_idx] += 1;
+                adaptive.occurences[neighborhood_idx] += 1;
 
-                let reset = iteration != last_improved && (iteration - last_improved) % reset_after == 0;
+                let end_of_segment = if CONFIG.adaptive_fixed_iterations {
+                    iteration > 0 && iteration % adaptive_iterations == 0
+                } else {
+                    iteration != last_improved_iteration
+                        && (iteration - last_improved_iteration) % adaptive_iterations == 0
+                };
+                if end_of_segment {
+                    adaptive.segment += 1;
+                }
+
+                let reset = if let Strategy::Adaptive = CONFIG.strategy {
+                    if CONFIG.adaptive_fixed_segments {
+                        adaptive.segment - adaptive.last_improved_segment >= CONFIG.adaptive_segments
+                    } else {
+                        adaptive.segment != adaptive.last_improved_segment
+                            && (adaptive.segment - adaptive.last_improved_segment) % CONFIG.adaptive_segments == 0
+                    }
+                } else {
+                    iteration != last_improved_iteration && (iteration - last_improved_iteration) % reset_after == 0
+                };
 
                 if reset {
                     if elite_set.is_empty() {
@@ -1035,10 +1056,10 @@ impl Solution {
                             _record_new_solution(
                                 &current,
                                 &mut result,
-                                &mut last_improved,
-                                &mut last_improved_segment,
+                                &mut last_improved_iteration,
+                                &mut adaptive.last_improved_segment,
                                 iteration,
-                                segment,
+                                adaptive.segment,
                                 &mut edge_records,
                                 &mut elite_set,
                             );
@@ -1064,7 +1085,7 @@ impl Solution {
                         neighborhood_idx = (neighborhood_idx + 1) % NEIGHBORHOODS.len();
                     }
                     Strategy::Vns => {
-                        if iteration == last_improved {
+                        if iteration == last_improved_iteration {
                             neighborhood_idx = 0;
                         } else {
                             neighborhood_idx = (neighborhood_idx + 1) % NEIGHBORHOODS.len();
@@ -1074,43 +1095,22 @@ impl Solution {
                         }
                     }
                     Strategy::Adaptive => {
-                        let reset = if CONFIG.adaptive_dynamic_iterations {
-                            iteration != last_improved && (iteration - last_improved) % adaptive_iterations == 0
-                        } else {
-                            iteration > 0 && iteration % adaptive_iterations == 0
-                        };
-
-                        if reset {
-                            segment += 1;
-                            if CONFIG.fix_nonimp_segments {
-                                match CONFIG.fix_adaptive_segments {
-                                    Some(fix_adaptive_segments) => {
-                                        if segment - last_improved_segment >= fix_adaptive_segments {
-                                            break;
-                                        }
-                                    }
-                                    None => {
-                                        panic!("--fix-nonimp-segments without --fix-adaptive-segments is not allowed");
-                                    }
-                                }
-                            } else if Some(segment) == CONFIG.fix_adaptive_segments {
-                                break;
-                            }
-
+                        if end_of_segment {
                             for neighborhood_idx in 0..NEIGHBORHOODS.len() {
-                                if occurences[neighborhood_idx] > 0 {
-                                    weights[neighborhood_idx] = 0.7f64.mul_add(
-                                        weights[neighborhood_idx],
-                                        0.3 * scores[neighborhood_idx] / f64::from(occurences[neighborhood_idx]),
+                                if adaptive.occurences[neighborhood_idx] > 0 {
+                                    adaptive.weights[neighborhood_idx] = 0.7f64.mul_add(
+                                        adaptive.weights[neighborhood_idx],
+                                        0.3 * adaptive.scores[neighborhood_idx]
+                                            / f64::from(adaptive.occurences[neighborhood_idx]),
                                     );
                                 }
 
-                                scores[neighborhood_idx] = 0.0;
-                                occurences[neighborhood_idx] = 0;
+                                adaptive.scores[neighborhood_idx] = 0.0;
+                                adaptive.occurences[neighborhood_idx] = 0;
                             }
                         }
 
-                        let dist = WeightedIndex::new(&weights).unwrap();
+                        let dist = WeightedIndex::new(&adaptive.weights).unwrap();
                         neighborhood_idx = dist.sample(&mut rng);
                     }
                 }
@@ -1129,8 +1129,8 @@ impl Solution {
                 tabu_size,
                 reset_after,
                 adaptive_iterations,
-                segment,
-                last_improved,
+                adaptive.segment,
+                last_improved_iteration,
             )
             .unwrap();
 

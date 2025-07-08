@@ -22,7 +22,7 @@ struct RunJSON<'a> {
     reset_after: usize,
     iterations: usize,
     actual_adaptive_iterations: usize,
-    adaptive_segments: usize,
+    total_adaptive_segments: usize,
     solution: &'a Solution,
     config: &'a SerializedConfig,
     last_improved: usize,
@@ -155,7 +155,7 @@ impl Logger<'_> {
         tabu_size: usize,
         reset_after: usize,
         actual_adaptive_iterations: usize,
-        adaptive_segments: usize,
+        total_adaptive_segments: usize,
         last_improved: usize,
     ) -> Result<(), Box<dyn Error>> {
         let elapsed = SystemTime::now().duration_since(UNIX_EPOCH).unwrap() - self._time_offset;
@@ -171,7 +171,7 @@ impl Logger<'_> {
                 reset_after,
                 iterations: self._iteration,
                 actual_adaptive_iterations,
-                adaptive_segments,
+                total_adaptive_segments,
                 solution: result,
                 config: &serialized_config,
                 last_improved,
