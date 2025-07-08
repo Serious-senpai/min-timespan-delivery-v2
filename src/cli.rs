@@ -223,7 +223,7 @@ pub enum Commands {
         waiting_time_limit: f64,
 
         /// Tabu search neighborhood selection strategy.
-        #[arg(long, default_value_t = Strategy::Random)]
+        #[arg(long, default_value_t = Strategy::Adaptive)]
         strategy: Strategy,
 
         /// Fix the number of iterations and disable elite set extraction. Otherwise, run until the elite set is exhausted.
