@@ -60,6 +60,8 @@ pub enum Strategy {
     Cyclic,
     #[serde(rename = "vns")]
     Vns,
+    #[serde(rename = "adaptive")]
+    Adaptive,
 }
 
 impl fmt::Display for Strategy {
@@ -71,6 +73,7 @@ impl fmt::Display for Strategy {
                 Self::Random => "random",
                 Self::Cyclic => "cyclic",
                 Self::Vns => "vns",
+                Self::Adaptive => "adaptive",
             }
         )
     }
@@ -132,6 +135,7 @@ pub struct Arguments {
     pub command: Commands,
 }
 
+#[allow(clippy::large_enum_variant)] // This struct is mostly a singleton
 #[derive(Debug, Subcommand)]
 pub enum Commands {
     /// Evaluate an existing solution
@@ -160,9 +164,26 @@ pub enum Commands {
         #[arg(short, long, default_value_t = EnergyModel::Endurance)]
         config: EnergyModel,
 
-        /// Tabu size of each neighborhood, final value = a1 * base
+        /// Tabu size of each neighborhood, final value = [--tabu-size-factor] * [Base]
         #[arg(long, default_value_t = 0.75)]
         tabu_size_factor: f64,
+
+        /// Number of non-improved iterations per adaptive segment = [--adaptive-iterations] * [Base]
+        #[arg(long, default_value_t = 15)]
+        adaptive_iterations: usize,
+
+        /// Infer --adaptive-iterations as a fixed number of iterations per adaptive segment.
+        #[arg(long)]
+        adaptive_fixed_iterations: bool,
+
+        /// Number of non-improved segments before resetting the current solution = [--adaptive-segments] * [Base]
+        /// (note: in "adaptive" strategy, "--reset-after-factor" is ignored)
+        #[arg(long, default_value_t = 9)]
+        adaptive_segments: usize,
+
+        /// Infer --adaptive-segments as a fixed number of segments per reset.
+        #[arg(long)]
+        adaptive_fixed_segments: bool,
 
         /// The number of ejection chain iterations to run when the elite set is popped
         #[arg(long, default_value_t = 1)]
@@ -202,18 +223,18 @@ pub enum Commands {
         waiting_time_limit: f64,
 
         /// Tabu search neighborhood selection strategy.
-        #[arg(long, default_value_t = Strategy::Random)]
+        #[arg(long, default_value_t = Strategy::Adaptive)]
         strategy: Strategy,
 
         /// Fix the number of iterations and disable elite set extraction. Otherwise, run until the elite set is exhausted.
         #[arg(long)]
         fix_iteration: Option<usize>,
 
-        /// The number of non-improved iterations before resetting the current solution = a2 * base
+        /// The number of non-improved iterations before resetting the current solution = [--reset-after-factor] * [Base]
         #[arg(long, default_value_t = 125.0)]
         reset_after_factor: f64,
 
-        /// The maximum size of the elite set = a3
+        /// The maximum size of the elite set
         #[arg(long, default_value_t = 15)]
         max_elite_size: usize,
 

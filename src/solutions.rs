@@ -5,6 +5,8 @@ use std::sync::atomic::Ordering;
 use std::sync::LazyLock;
 use std::{cmp, fmt};
 
+use rand::distr::weighted::WeightedIndex;
+use rand::prelude::*;
 use rand::seq::SliceRandom;
 use rand::{rng, Rng};
 use serde::de::{SeqAccess, Visitor};
@@ -867,6 +869,11 @@ impl Solution {
         }
         let base_hyperparameter = CONFIG.customers_count as f64 / total_vehicle as f64;
         let tabu_size = (CONFIG.tabu_size_factor * base_hyperparameter) as usize;
+        let adaptive_iterations = if CONFIG.adaptive_fixed_iterations {
+            CONFIG.adaptive_iterations
+        } else {
+            CONFIG.adaptive_iterations * base_hyperparameter as usize
+        };
         let reset_after = if CONFIG.fix_iteration.is_some() {
             i64::MAX as usize // usize::MAX cannot be stored in SQLite
         } else {
@@ -874,7 +881,24 @@ impl Solution {
         };
 
         let mut result = Rc::new(root);
-        let mut last_improved = 0;
+
+        let mut last_improved_iteration = 0;
+
+        struct _AdaptiveState {
+            segment: usize,
+            last_improved_segment: usize,
+            scores: Vec<f64>,
+            weights: Vec<f64>,
+            occurences: Vec<u32>,
+        }
+
+        let mut adaptive = _AdaptiveState {
+            segment: 0,
+            last_improved_segment: 0,
+            scores: vec![0.0; NEIGHBORHOODS.len()],
+            weights: vec![1.0; NEIGHBORHOODS.len()],
+            occurences: vec![0; NEIGHBORHOODS.len()],
+        };
 
         if !CONFIG.dry_run {
             let mut current = result.clone();
@@ -895,14 +919,17 @@ impl Solution {
             fn _record_new_solution(
                 neighbor: &Rc<Solution>,
                 result: &mut Rc<Solution>,
-                last_improved: &mut usize,
+                last_improved_iteration: &mut usize,
+                last_improved_segment: &mut usize,
                 iteration: usize,
+                segment: usize,
                 edge_records: &mut [Vec<f64>],
                 elite_set: &mut Vec<Rc<Solution>>,
             ) {
                 if neighbor.cost() < result.cost() && neighbor.feasible {
                     *result = neighbor.clone();
-                    *last_improved = iteration;
+                    *last_improved_iteration = iteration;
+                    *last_improved_segment = segment;
 
                     for routes in &neighbor.truck_routes {
                         for route in routes {
@@ -941,7 +968,7 @@ impl Solution {
                     eprint!(
                         "Iteration #{} (reset in {}): {:.2}/{:.2}, elite set {}/{}     \r",
                         iteration,
-                        reset_after.saturating_sub((iteration - last_improved) % reset_after),
+                        reset_after.saturating_sub((iteration - last_improved_iteration) % reset_after),
                         current.cost(),
                         result.cost(),
                         elite_set.len(),
@@ -956,11 +983,24 @@ impl Solution {
                     neighborhood.search(&current, &mut tabu_lists[neighborhood_idx], tabu_size, result.cost())
                 {
                     let neighbor = Rc::new(neighbor);
+                    // Update `scores` and `weights`
+                    if neighbor.feasible {
+                        if neighbor.cost() < result.cost() {
+                            adaptive.scores[neighborhood_idx] += 0.5;
+                        } else if neighbor.cost() < current.cost() {
+                            adaptive.scores[neighborhood_idx] += 0.3;
+                        } else {
+                            adaptive.scores[neighborhood_idx] += 0.1;
+                        }
+                    }
+
                     _record_new_solution(
                         &neighbor,
                         &mut result,
-                        &mut last_improved,
+                        &mut last_improved_iteration,
+                        &mut adaptive.last_improved_segment,
                         iteration,
+                        adaptive.segment,
                         &mut edge_records,
                         &mut elite_set,
                     );
@@ -968,7 +1008,28 @@ impl Solution {
                     current = neighbor;
                 }
 
-                let reset = iteration != last_improved && (iteration - last_improved) % reset_after == 0;
+                adaptive.occurences[neighborhood_idx] += 1;
+
+                let end_of_segment = if CONFIG.adaptive_fixed_iterations {
+                    iteration > 0 && iteration % adaptive_iterations == 0
+                } else {
+                    iteration != last_improved_iteration
+                        && (iteration - last_improved_iteration) % adaptive_iterations == 0
+                };
+                if end_of_segment {
+                    adaptive.segment += 1;
+                }
+
+                let reset = if let Strategy::Adaptive = CONFIG.strategy {
+                    if CONFIG.adaptive_fixed_segments {
+                        adaptive.segment - adaptive.last_improved_segment >= CONFIG.adaptive_segments
+                    } else {
+                        adaptive.segment != adaptive.last_improved_segment
+                            && (adaptive.segment - adaptive.last_improved_segment) % CONFIG.adaptive_segments == 0
+                    }
+                } else {
+                    iteration != last_improved_iteration && (iteration - last_improved_iteration) % reset_after == 0
+                };
 
                 if reset {
                     if elite_set.is_empty() {
@@ -995,8 +1056,10 @@ impl Solution {
                             _record_new_solution(
                                 &current,
                                 &mut result,
-                                &mut last_improved,
+                                &mut last_improved_iteration,
+                                &mut adaptive.last_improved_segment,
                                 iteration,
+                                adaptive.segment,
                                 &mut edge_records,
                                 &mut elite_set,
                             );
@@ -1022,7 +1085,7 @@ impl Solution {
                         neighborhood_idx = (neighborhood_idx + 1) % NEIGHBORHOODS.len();
                     }
                     Strategy::Vns => {
-                        if iteration == last_improved {
+                        if iteration == last_improved_iteration {
                             neighborhood_idx = 0;
                         } else {
                             neighborhood_idx = (neighborhood_idx + 1) % NEIGHBORHOODS.len();
@@ -1030,6 +1093,25 @@ impl Solution {
                                 current = old_current;
                             }
                         }
+                    }
+                    Strategy::Adaptive => {
+                        if end_of_segment {
+                            for neighborhood_idx in 0..NEIGHBORHOODS.len() {
+                                if adaptive.occurences[neighborhood_idx] > 0 {
+                                    adaptive.weights[neighborhood_idx] = 0.7f64.mul_add(
+                                        adaptive.weights[neighborhood_idx],
+                                        0.3 * adaptive.scores[neighborhood_idx]
+                                            / f64::from(adaptive.occurences[neighborhood_idx]),
+                                    );
+                                }
+
+                                adaptive.scores[neighborhood_idx] = 0.0;
+                                adaptive.occurences[neighborhood_idx] = 0;
+                            }
+                        }
+
+                        let dist = WeightedIndex::new(&adaptive.weights).unwrap();
+                        neighborhood_idx = dist.sample(&mut rng);
                     }
                 }
             }
@@ -1041,7 +1123,16 @@ impl Solution {
             result = Rc::new(result.post_optimization());
         }
 
-        logger.finalize(&result, tabu_size, reset_after, last_improved).unwrap();
+        logger
+            .finalize(
+                &result,
+                tabu_size,
+                reset_after,
+                adaptive_iterations,
+                adaptive.segment,
+                last_improved_iteration,
+            )
+            .unwrap();
 
         Self::clone(&result)
     }
