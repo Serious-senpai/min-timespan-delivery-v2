@@ -176,7 +176,7 @@ pub enum Commands {
         #[arg(long)]
         adaptive_fixed_iterations: bool,
 
-        /// Number of non-improved segments before resetting the current solution = [--adaptive-segments] * [Base]
+        /// Number of non-improved segments before resetting the current solution = [--adaptive-segments]
         /// (note: in "adaptive" strategy, "--reset-after-factor" is ignored)
         #[arg(long, default_value_t = 9)]
         adaptive_segments: usize,
