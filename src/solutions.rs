@@ -869,11 +869,13 @@ impl Solution {
         }
         let base_hyperparameter = CONFIG.customers_count as f64 / total_vehicle as f64;
         let tabu_size = (CONFIG.tabu_size_factor * base_hyperparameter) as usize;
+
         let adaptive_iterations = if CONFIG.adaptive_fixed_iterations {
             CONFIG.adaptive_iterations
         } else {
             CONFIG.adaptive_iterations * base_hyperparameter as usize
         };
+
         let reset_after = if CONFIG.fix_iteration.is_some() {
             i64::MAX as usize // usize::MAX cannot be stored in SQLite
         } else {
@@ -886,6 +888,7 @@ impl Solution {
 
         struct _AdaptiveState {
             segment: usize,
+            segment_reset: usize,
             last_improved_segment: usize,
             scores: Vec<f64>,
             weights: Vec<f64>,
@@ -894,6 +897,7 @@ impl Solution {
 
         let mut adaptive = _AdaptiveState {
             segment: 0,
+            segment_reset: 0,
             last_improved_segment: 0,
             scores: vec![0.0; NEIGHBORHOODS.len()],
             weights: vec![1.0; NEIGHBORHOODS.len()],
@@ -965,10 +969,30 @@ impl Solution {
 
             for iteration in iteration_range {
                 if CONFIG.verbose {
+                    let extra = if let Strategy::Adaptive = CONFIG.strategy {
+                        format!(
+                            "(segments before reset {})",
+                            if CONFIG.adaptive_fixed_segments {
+                                adaptive
+                                    .segment
+                                    .saturating_sub(adaptive.segment_reset + CONFIG.adaptive_segments)
+                            } else {
+                                CONFIG.adaptive_segments.saturating_sub(
+                                    adaptive.segment - cmp::max(adaptive.segment_reset, adaptive.last_improved_segment),
+                                )
+                            }
+                        )
+                    } else {
+                        format!(
+                            "(reset in {})",
+                            reset_after.saturating_sub((iteration - last_improved_iteration) % reset_after)
+                        )
+                    };
+
                     eprint!(
-                        "Iteration #{} (reset in {}): {:.2}/{:.2}, elite set {}/{}     \r",
+                        "Iteration #{} {}: {:.2}/{:.2}, elite set {}/{}     \r",
                         iteration,
-                        reset_after.saturating_sub((iteration - last_improved_iteration) % reset_after),
+                        extra,
                         current.cost(),
                         result.cost(),
                         elite_set.len(),
@@ -983,7 +1007,8 @@ impl Solution {
                     neighborhood.search(&current, &mut tabu_lists[neighborhood_idx], tabu_size, result.cost())
                 {
                     let neighbor = Rc::new(neighbor);
-                    // Update `scores` and `weights`
+
+                    // Update adaptive state
                     if neighbor.feasible {
                         if neighbor.cost() < result.cost() {
                             adaptive.scores[neighborhood_idx] += 0.5;
@@ -1022,16 +1047,18 @@ impl Solution {
 
                 let reset = if let Strategy::Adaptive = CONFIG.strategy {
                     if CONFIG.adaptive_fixed_segments {
-                        adaptive.segment - adaptive.last_improved_segment >= CONFIG.adaptive_segments
+                        adaptive.segment >= adaptive.segment_reset + CONFIG.adaptive_segments
                     } else {
-                        adaptive.segment != adaptive.last_improved_segment
-                            && (adaptive.segment - adaptive.last_improved_segment) % CONFIG.adaptive_segments == 0
+                        adaptive.segment
+                            >= cmp::max(adaptive.segment_reset, adaptive.last_improved_segment)
+                                + CONFIG.adaptive_segments
                     }
                 } else {
                     iteration != last_improved_iteration && (iteration - last_improved_iteration) % reset_after == 0
                 };
 
                 if reset {
+                    adaptive.segment_reset = adaptive.segment;
                     if elite_set.is_empty() {
                         break;
                     }
