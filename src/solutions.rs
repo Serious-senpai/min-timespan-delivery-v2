@@ -1059,6 +1059,8 @@ impl Solution {
 
                 if reset {
                     adaptive.segment_reset = adaptive.segment;
+                    adaptive.weights = vec![1.0; NEIGHBORHOODS.len()];
+
                     if elite_set.is_empty() {
                         break;
                     }
