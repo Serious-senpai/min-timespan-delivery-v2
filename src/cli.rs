@@ -168,17 +168,25 @@ pub enum Commands {
         #[arg(long, default_value_t = 0.75)]
         tabu_size_factor: f64,
 
-        /// Number of interations per adaptive segment (if strategy is set to "adaptive")
-        #[arg(long, default_value_t = 500)]
+        /// Number of non-improved iterations per adaptive segment = [--adaptive-iterations] * [Base]
+        #[arg(long, default_value_t = 15)]
         adaptive_iterations: usize,
 
-        /// Infer --adaptive-iterations as number of non-improved iterations per adaptive segment.
-        /// Number of non-improved iterations per adaptive segment = [--adaptive-iterations] * [Base]
+        /// Infer --adaptive-iterations as a fixed number of iterations per adaptive segment.
         #[arg(long)]
-        adaptive_dynamic_iterations: bool,
+        adaptive_fixed_iterations: bool,
+
+        /// Number of non-improved segments before resetting the current solution = [--adaptive-segments]
+        /// (note: in "adaptive" strategy, "--reset-after-factor" is ignored)
+        #[arg(long, default_value_t = 9)]
+        adaptive_segments: usize,
+
+        /// Infer --adaptive-segments as a fixed number of segments per reset.
+        #[arg(long)]
+        adaptive_fixed_segments: bool,
 
         /// The number of ejection chain iterations to run when the elite set is popped
-        #[arg(long, default_value_t = 1)]
+        #[arg(long, default_value_t = 0)]
         ejection_chain_iterations: usize,
 
         /// The destroy rate during destroy-and-repair procedure when the elite set is popped,
@@ -215,20 +223,12 @@ pub enum Commands {
         waiting_time_limit: f64,
 
         /// Tabu search neighborhood selection strategy.
-        #[arg(long, default_value_t = Strategy::Random)]
+        #[arg(long, default_value_t = Strategy::Adaptive)]
         strategy: Strategy,
 
         /// Fix the number of iterations and disable elite set extraction. Otherwise, run until the elite set is exhausted.
         #[arg(long)]
         fix_iteration: Option<usize>,
-
-        /// Fix the number of adaptive segments if strategy is set to "adaptive" (ignore "--fix-iteration")
-        #[arg(long)]
-        fix_adaptive_segments: Option<usize>,
-
-        /// Infer --fix-adaptive-segments as the number of non-improved iterations per adaptive segment.
-        #[arg(long)]
-        fix_nonimp_segments: bool,
 
         /// The number of non-improved iterations before resetting the current solution = [--reset-after-factor] * [Base]
         #[arg(long, default_value_t = 125.0)]
