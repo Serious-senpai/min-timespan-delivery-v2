@@ -186,7 +186,7 @@ pub enum Commands {
         adaptive_fixed_segments: bool,
 
         /// The number of ejection chain iterations to run when the elite set is popped
-        #[arg(long, default_value_t = 1)]
+        #[arg(long, default_value_t = 0)]
         ejection_chain_iterations: usize,
 
         /// The destroy rate during destroy-and-repair procedure when the elite set is popped,
