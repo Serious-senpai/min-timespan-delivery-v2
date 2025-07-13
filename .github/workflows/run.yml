@@ -88,7 +88,7 @@ jobs:
             echo "RUN #$i"
             for path in $(find problems/data/*)
             do
-              execute "./min-timespan-delivery run $path --strategy adaptive --adaptive-iterations ${{ matrix.adaptive-iterations }} --adaptive-dynamic-iterations --fix-adaptive-segments ${{ matrix.fix-adaptive-segments }} --fix-nonimp-segments --disable-logging --extra ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+              execute "./min-timespan-delivery run $path --strategy adaptive --adaptive-iterations ${{ matrix.adaptive-iterations }} --adaptive-segments ${{ matrix.adaptive-segments }} --disable-logging --extra ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
             done
           done
 
@@ -98,7 +98,7 @@ jobs:
         uses: actions/upload-artifact@v4
         if: ${{ always() }}
         with:
-          name: output-${{ matrix.adaptive-iterations }}-${{ matrix.fix-adaptive-segments }}-${{ matrix.steps }}
+          name: output-${{ matrix.adaptive-iterations }}-${{ matrix.adaptive-segments }}-${{ matrix.steps }}
           path: outputs/*
 
   summary:
