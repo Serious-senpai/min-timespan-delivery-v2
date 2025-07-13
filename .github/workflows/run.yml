@@ -45,7 +45,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        adaptive-iterations: [10, 15, 20]
+        adaptive-iterations: [80, 100, 120]
         fix-adaptive-segments: [5, 6, 7, 8, 9, 10]
         steps: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 
