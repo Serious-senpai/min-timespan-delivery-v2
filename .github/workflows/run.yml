@@ -46,6 +46,7 @@ jobs:
       fail-fast: false
       matrix:
         max-elite-size: [0, 5, 10, 15, 20, 25, 30, 35]
+        destroy-rate: [0, 0.05, 0.1]
         steps: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 
     steps:
@@ -87,7 +88,7 @@ jobs:
             echo "RUN #$i"
             for path in $(find problems/data/*)
             do
-              execute "./min-timespan-delivery run $path --max-elite-size ${{ matrix.max-elite-size }} --disable-logging --extra ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+              execute "./min-timespan-delivery run $path --max-elite-size ${{ matrix.max-elite-size }} --destroy-rate ${{ matrix.destroy-rate }} --disable-logging --extra ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
             done
           done
 
@@ -97,7 +98,7 @@ jobs:
         uses: actions/upload-artifact@v4
         if: ${{ always() }}
         with:
-          name: output-${{ matrix.max-elite-size }}-${{ matrix.steps }}
+          name: output-${{ matrix.max-elite-size }}-${{ matrix.destroy-rate }}-${{ matrix.steps }}
           path: outputs/*
 
   summary:
