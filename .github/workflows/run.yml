@@ -45,9 +45,10 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
+        prefix: [50.10., 50.20., 50.30, 50.40., 100.10., 100.20., 100.30., 100.40.]
         adaptive-iterations: [80, 100, 120]
-        adaptive-segments: [5, 6, 7, 8, 9, 10]
-        steps: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+        adaptive-segments: [5, 6, 7]
+        steps: [0, 1]
 
     steps:
       - name: Checkout repository
@@ -68,8 +69,8 @@ jobs:
         run: |
           exitcode=0
           set +e
-          let begin=${{ matrix.steps }}+1
-          let end=$begin+0
+          let begin=5*${{ matrix.steps }}+1
+          let end=$begin+4
 
           execute() {
             command=$1
