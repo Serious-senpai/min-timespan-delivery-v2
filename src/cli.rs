@@ -235,7 +235,7 @@ pub enum Commands {
         reset_after_factor: f64,
 
         /// The maximum size of the elite set
-        #[arg(long, default_value_t = 15)]
+        #[arg(long, default_value_t = 0)]
         max_elite_size: usize,
 
         /// Exponent value E attached to the cost function:
