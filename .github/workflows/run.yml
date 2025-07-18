@@ -45,8 +45,9 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        adaptive-iterations: [10, 15, 20, 25, 30, 35, 40, 60, 80, 100]
+        adaptive-iterations: [40, 60, 80]
         adaptive-segments: [5, 6, 7, 8, 9]
+        destroy-rate: [0, 0.1, 0.2]
         steps: [0, 1, 2, 3, 4]
 
     steps:
@@ -88,7 +89,7 @@ jobs:
             echo "RUN #$i"
             for path in $(find problems/data/*)
             do
-              execute "./min-timespan-delivery run $path --max-elite-size 3 --adaptive-iterations ${{ matrix.adaptive-iterations }} --adaptive-segments ${{ matrix.adaptive-segments }} --disable-logging --extra ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+              execute "./min-timespan-delivery run $path --max-elite-size 3 --adaptive-iterations ${{ matrix.adaptive-iterations }} --adaptive-segments ${{ matrix.adaptive-segments }} --destroy-rate ${{ matrix.destroy-rate }} --disable-logging --extra ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
             done
           done
 
@@ -98,7 +99,7 @@ jobs:
         uses: actions/upload-artifact@v4
         if: ${{ always() }}
         with:
-          name: output-${{ matrix.adaptive-iterations }}-${{ matrix.adaptive-segments }}-${{ matrix.steps }}
+          name: output-${{ matrix.adaptive-iterations }}-${{ matrix.adaptive-segments }}-${{ matrix.destroy-rate }}-${{ matrix.steps }}
           path: outputs/*
 
   summary:
