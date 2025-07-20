@@ -514,7 +514,7 @@ impl From<Config> for SerializedConfig {
 
 pub static CONFIG: LazyLock<Config> = LazyLock::new(|| {
     let arguments = cli::Arguments::parse();
-    eprintln!("Received {:?}", arguments);
+    eprintln!("Received {arguments:?}");
     match arguments.command {
         cli::Commands::Evaluate { config, .. } => {
             let data = fs::read_to_string(config).unwrap();

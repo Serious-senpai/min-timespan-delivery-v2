@@ -60,11 +60,11 @@ impl Logger<'_> {
         let mut writer = if CONFIG.disable_logging {
             None
         } else {
-            Some(File::create(outputs.join(format!("{}-{}.csv", problem, id)))?)
+            Some(File::create(outputs.join(format!("{problem}-{id}.csv")))?)
         };
 
         if let Some(ref mut writer) = writer {
-            eprintln!("Logging iterations to {:?}", writer);
+            eprintln!("Logging iterations to {writer:?}");
 
             let columns = vec![
                 "Iteration",
@@ -87,7 +87,7 @@ impl Logger<'_> {
                 "Tabu list",
             ]
             .join(",");
-            writeln!(writer, "sep=,\n{}", columns)?;
+            writeln!(writer, "sep=,\n{columns}")?;
         }
 
         Ok(Logger {
@@ -107,7 +107,7 @@ impl Logger<'_> {
         tabu_list: &Vec<Vec<usize>>,
     ) -> Result<(), io::Error> {
         fn _wrap(content: &String) -> String {
-            format!("\"{}\"", content)
+            format!("\"{content}\"")
         }
 
         fn _expand_routes<T>(routes: &[Vec<Rc<T>>]) -> Vec<Vec<&Vec<usize>>>
@@ -142,7 +142,7 @@ impl Logger<'_> {
                 solution.truck_routes.iter().map(|r| r.len()).sum::<usize>(),
                 solution.drone_routes.iter().map(|r| r.len()).sum::<usize>(),
                 _wrap(&neighbor.to_string()),
-                _wrap(&format!("{:?}", tabu_list)),
+                _wrap(&format!("{tabu_list:?}")),
             )?;
         }
 

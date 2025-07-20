@@ -179,23 +179,23 @@ impl Solution {
         {
             for routes in vehicle_routes {
                 if R::single_route() && routes.len() > 1 {
-                    panic!("Vehicle {:?} has more than one route", routes);
+                    panic!("Vehicle {routes:?} has more than one route");
                 }
 
                 for route in routes {
                     let customers = &route.data().customers;
 
                     if R::single_customer() && customers.len() != 3 {
-                        panic!("Route {:?} has more than one customer", route);
+                        panic!("Route {route:?} has more than one customer");
                     }
 
                     if customers.first() != Some(&0) || customers.last() != Some(&0) {
-                        panic!("Invalid route {:?}", customers);
+                        panic!("Invalid route {customers:?}");
                     }
 
                     for &c in customers.iter().skip(1).take(customers.len() - 2) {
                         if served[c] {
-                            panic!("Customer {} is served more than once", c);
+                            panic!("Customer {c} is served more than once");
                         }
 
                         served[c] = true;
@@ -209,7 +209,7 @@ impl Solution {
 
         for (c, s) in served.iter().enumerate() {
             if !s {
-                panic!("Customer {} is not served", c);
+                panic!("Customer {c} is not served");
             }
         }
     }
@@ -495,7 +495,7 @@ impl Solution {
         }
 
         while !global.is_empty() {
-            let packed = queue.pop().unwrap_or_else(|| panic!("A trivial solution cannot be constructed during initialization.\nThe following customers cannot be served: {:?}", global));
+            let packed = queue.pop().unwrap_or_else(|| panic!("A trivial solution cannot be constructed during initialization.\nThe following customers cannot be served: {global:?}"));
 
             let cluster = clusters_mapping[packed.index];
             match clusters[cluster].iter().position(|&x| x == packed.index) {

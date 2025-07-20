@@ -317,7 +317,7 @@ pub trait Route: Sized {
                     }
                 }
             }
-            _ => panic!("inter_route called with invalid neighborhood {}", neighborhood),
+            _ => panic!("inter_route called with invalid neighborhood {neighborhood}"),
         }
 
         results
@@ -384,7 +384,7 @@ pub trait Route: Sized {
                     buffer_i.insert(idx_i, remove_x);
                 }
             }
-            _ => panic!("inter_route_3 called with invalid neighborhood {}", neighborhood),
+            _ => panic!("inter_route_3 called with invalid neighborhood {neighborhood}"),
         }
 
         results
@@ -563,7 +563,7 @@ pub trait Route: Sized {
                     buffer[i..length - 1].reverse();
                 }
             }
-            _ => panic!("intra_route called with invalid neighborhood {}", neighborhood),
+            _ => panic!("intra_route called with invalid neighborhood {neighborhood}"),
         }
 
         for (_, tabu) in results.iter_mut() {
