@@ -1,7 +1,6 @@
 use std::fmt;
 
 use clap::{Parser, Subcommand, ValueEnum};
-use num_traits::Float;
 use serde::{Deserialize, Serialize};
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, ValueEnum, Deserialize, Serialize)]
@@ -101,14 +100,11 @@ impl fmt::Display for DistanceType {
 }
 
 impl DistanceType {
-    pub fn matrix<T>(&self, x: &[T], y: &[T]) -> Vec<Vec<T>>
-    where
-        T: Float,
-    {
+    pub fn matrix(&self, x: &[f64], y: &[f64]) -> Vec<Vec<f64>> {
         let n = x.len();
         assert_eq!(n, y.len());
 
-        let mut matrix = vec![vec![T::zero(); n]; n];
+        let mut matrix = vec![vec![0.0; n]; n];
         for i in 0..n {
             for j in 0..n {
                 let dx = x[i] - x[j];
