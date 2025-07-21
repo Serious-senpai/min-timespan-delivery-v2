@@ -24,7 +24,7 @@ jobs:
         run: lscpu
 
       - name: Setup Rust
-        run: curl --proto '=https' --tlsv1.2 https://sh.rustup.rs -sSf | sh -s -- --default-toolchain=1.88 -y
+        run: curl --proto '=https' --tlsv1.2 https://sh.rustup.rs -sSf | sh -s -- --default-toolchain=1.87 -y
 
       - name: Compile source files
         run: cargo build --release
@@ -45,7 +45,10 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        steps: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+        adaptive-iterations: [40, 60, 80, 100]
+        adaptive-segments: [5, 7, 9]
+        destroy-rate: [0, 0.1, 0.2]
+        steps: [0, 1, 2, 3, 4]
 
     steps:
       - name: Checkout repository
@@ -66,8 +69,8 @@ jobs:
         run: |
           exitcode=0
           set +e
-          let begin=${{ matrix.steps }}+1
-          let end=$begin+0
+          let begin=2*${{ matrix.steps }}+1
+          let end=$begin+1
 
           execute() {
             command=$1
@@ -86,7 +89,7 @@ jobs:
             echo "RUN #$i"
             for path in $(find problems/data/*)
             do
-              execute "./min-timespan-delivery run $path --disable-logging --extra ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+              execute "./min-timespan-delivery run $path --max-elite-size 3 --ejection-chain-iterations 10 --adaptive-iterations ${{ matrix.adaptive-iterations }} --adaptive-segments ${{ matrix.adaptive-segments }} --destroy-rate ${{ matrix.destroy-rate }} --disable-logging --extra ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
             done
           done
 
@@ -96,7 +99,7 @@ jobs:
         uses: actions/upload-artifact@v4
         if: ${{ always() }}
         with:
-          name: output-${{ matrix.steps }}
+          name: output-${{ matrix.adaptive-iterations }}-${{ matrix.adaptive-segments }}-${{ matrix.destroy-rate }}-${{ matrix.steps }}
           path: outputs/*
 
   summary:
