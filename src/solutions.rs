@@ -1,14 +1,14 @@
 use std::collections::{BTreeSet, BinaryHeap, HashSet};
 use std::marker::PhantomData;
 use std::rc::Rc;
-use std::sync::atomic::Ordering;
 use std::sync::LazyLock;
+use std::sync::atomic::Ordering;
 use std::{cmp, fmt};
 
 use rand::distr::weighted::WeightedIndex;
 use rand::prelude::*;
 use rand::seq::SliceRandom;
-use rand::{rng, Rng};
+use rand::{Rng, rng};
 use serde::de::{SeqAccess, Visitor};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 

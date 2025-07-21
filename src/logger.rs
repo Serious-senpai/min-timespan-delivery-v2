@@ -6,14 +6,14 @@ use std::path::Path;
 use std::rc::Rc;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
-use rand::distr::Alphanumeric;
 use rand::Rng;
+use rand::distr::Alphanumeric;
 
-use crate::config::{SerializedConfig, CONFIG};
+use crate::config::{CONFIG, SerializedConfig};
 use crate::errors::ExpectedValue;
 use crate::neighborhoods::Neighborhood;
 use crate::routes::Route;
-use crate::solutions::{penalty_coeff, Solution};
+use crate::solutions::{Solution, penalty_coeff};
 
 #[derive(serde::Serialize)]
 struct RunJSON<'a> {

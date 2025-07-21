@@ -5,6 +5,7 @@ use std::rc::Rc;
 
 use crate::config::CONFIG;
 use crate::neighborhoods::Neighborhood;
+use crate::solutions::Solution;
 
 #[derive(Debug)]
 struct _RouteDataValues {
@@ -781,5 +782,125 @@ impl DroneRoute {
             energy_violation,
             fixed_time_violation,
         }
+    }
+}
+
+#[derive(Clone)]
+pub enum AnyRoute {
+    Truck(Rc<TruckRoute>),
+    Drone(Rc<DroneRoute>),
+}
+
+impl AnyRoute {
+    pub fn from_solution(solution: &Solution) -> (Vec<Vec<Self>>, Vec<Vec<Self>>) {
+        (
+            solution
+                .truck_routes
+                .iter()
+                .map(|r| r.iter().map(|x| Self::Truck(x.clone())).collect())
+                .collect(),
+            solution
+                .drone_routes
+                .iter()
+                .map(|r| r.iter().map(|x| Self::Drone(x.clone())).collect())
+                .collect(),
+        )
+    }
+
+    pub fn to_solution(truck_routes: Vec<Vec<Self>>, drone_routes: Vec<Vec<Self>>) -> Solution {
+        Solution::new(
+            truck_routes
+                .into_iter()
+                .map(|routes| {
+                    routes
+                        .into_iter()
+                        .map(|route| match route {
+                            Self::Truck(truck_route) => truck_route,
+                            Self::Drone(_) => panic!("Invalid argument"),
+                        })
+                        .collect()
+                })
+                .collect(),
+            drone_routes
+                .into_iter()
+                .map(|routes| {
+                    routes
+                        .into_iter()
+                        .map(|route| match route {
+                            Self::Truck(_) => panic!("Invalid argument"),
+                            Self::Drone(drone_route) => drone_route,
+                        })
+                        .collect()
+                })
+                .collect(),
+        )
+    }
+
+    pub fn customers(&self) -> &[usize] {
+        match self {
+            Self::Truck(route) => &route.data().customers,
+            Self::Drone(route) => &route.data().customers,
+        }
+    }
+
+    pub fn inter_route_3(
+        &self,
+        other_x: &Self,
+        other_y: &Self,
+        neighborhood: Neighborhood,
+    ) -> Vec<(Option<Self>, Self, Self, Vec<usize>)> {
+        let mut result = vec![];
+        match (self, other_x, other_y) {
+            (Self::Truck(r1), Self::Truck(r2), Self::Truck(r3)) => {
+                let packed = r1.inter_route_3(r2.clone(), r3.clone(), neighborhood);
+                for (ptr1, ptr2, ptr3, tabu) in packed {
+                    result.push((ptr1.map(Self::Truck), Self::Truck(ptr2), Self::Truck(ptr3), tabu));
+                }
+            }
+            (Self::Truck(r1), Self::Truck(r2), Self::Drone(r3)) => {
+                let packed = r1.inter_route_3(r2.clone(), r3.clone(), neighborhood);
+                for (ptr1, ptr2, ptr3, tabu) in packed {
+                    result.push((ptr1.map(Self::Truck), Self::Truck(ptr2), Self::Drone(ptr3), tabu));
+                }
+            }
+            (Self::Truck(r1), Self::Drone(r2), Self::Truck(r3)) => {
+                let packed = r1.inter_route_3(r2.clone(), r3.clone(), neighborhood);
+                for (ptr1, ptr2, ptr3, tabu) in packed {
+                    result.push((ptr1.map(Self::Truck), Self::Drone(ptr2), Self::Truck(ptr3), tabu));
+                }
+            }
+            (Self::Truck(r1), Self::Drone(r2), Self::Drone(r3)) => {
+                let packed = r1.inter_route_3(r2.clone(), r3.clone(), neighborhood);
+                for (ptr1, ptr2, ptr3, tabu) in packed {
+                    result.push((ptr1.map(Self::Truck), Self::Drone(ptr2), Self::Drone(ptr3), tabu));
+                }
+            }
+            (Self::Drone(r1), Self::Truck(r2), Self::Truck(r3)) => {
+                let packed = r1.inter_route_3(r2.clone(), r3.clone(), neighborhood);
+                for (ptr1, ptr2, ptr3, tabu) in packed {
+                    result.push((ptr1.map(Self::Drone), Self::Truck(ptr2), Self::Truck(ptr3), tabu));
+                }
+            }
+            (Self::Drone(r1), Self::Truck(r2), Self::Drone(r3)) => {
+                let packed = r1.inter_route_3(r2.clone(), r3.clone(), neighborhood);
+                for (ptr1, ptr2, ptr3, tabu) in packed {
+                    result.push((ptr1.map(Self::Drone), Self::Truck(ptr2), Self::Drone(ptr3), tabu));
+                }
+            }
+            (Self::Drone(r1), Self::Drone(r2), Self::Truck(r3)) => {
+                let packed = r1.inter_route_3(r2.clone(), r3.clone(), neighborhood);
+                for (ptr1, ptr2, ptr3, tabu) in packed {
+                    result.push((ptr1.map(Self::Drone), Self::Drone(ptr2), Self::Truck(ptr3), tabu));
+                }
+            }
+            (Self::Drone(r1), Self::Drone(r2), Self::Drone(r3)) => {
+                let packed = r1.inter_route_3(r2.clone(), r3.clone(), neighborhood);
+                for (ptr1, ptr2, ptr3, tabu) in packed {
+                    result.push((ptr1.map(Self::Drone), Self::Drone(ptr2), Self::Drone(ptr3), tabu));
+                }
+            }
+        }
+
+        result
     }
 }
