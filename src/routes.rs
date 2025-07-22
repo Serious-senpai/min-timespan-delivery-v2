@@ -785,7 +785,7 @@ impl DroneRoute {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub enum AnyRoute {
     Truck(Rc<TruckRoute>),
     Drone(Rc<DroneRoute>),
