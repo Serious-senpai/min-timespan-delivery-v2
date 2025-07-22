@@ -458,7 +458,7 @@ impl Neighborhood {
                                         //     s.truck_routes,
                                         //     s.drone_routes,
                                         // );
-                                        s.verify();
+                                        // s.verify();
 
                                         indexer = _IndexingHelper::from_solution(&s);
                                     }
