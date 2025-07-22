@@ -350,25 +350,26 @@ impl Neighborhood {
     }
 
     fn _ejection_chain_internal(self, state: &mut _IterationState) {
+        #[derive(Clone)]
         struct _IndexingHelper {
-            original_truck_routes: Vec<Vec<AnyRoute>>,
-            original_drone_routes: Vec<Vec<AnyRoute>>,
+            truck_routes: Vec<Vec<AnyRoute>>,
+            drone_routes: Vec<Vec<AnyRoute>>,
         }
 
         impl _IndexingHelper {
             fn from_solution(solution: &Solution) -> Self {
                 let (truck_routes, drone_routes) = AnyRoute::from_solution(solution);
                 Self {
-                    original_truck_routes: truck_routes,
-                    original_drone_routes: drone_routes,
+                    truck_routes,
+                    drone_routes,
                 }
             }
 
             fn vehicle_index(&self, vehicle: usize) -> &Vec<AnyRoute> {
-                if vehicle < self.original_truck_routes.len() {
-                    &self.original_truck_routes[vehicle]
+                if vehicle < self.truck_routes.len() {
+                    &self.truck_routes[vehicle]
                 } else {
-                    &self.original_drone_routes[vehicle - self.original_truck_routes.len()]
+                    &self.drone_routes[vehicle - self.truck_routes.len()]
                 }
             }
 
@@ -386,10 +387,18 @@ impl Neighborhood {
                 self.route_index(first_vehicle, first_route).customers()[1]
                     == self.route_index(second_vehicle, second_route).customers()[1]
             }
+
+            fn update(&mut self, vehicle: usize, route_idx: usize, new_route: AnyRoute) {
+                if vehicle < self.truck_routes.len() {
+                    self.truck_routes[vehicle][route_idx] = new_route;
+                } else {
+                    self.drone_routes[vehicle - self.truck_routes.len()][route_idx] = new_route;
+                }
+            }
         }
 
         let mut indexer = _IndexingHelper::from_solution(state.original);
-        let total_vehicles = indexer.original_truck_routes.len() + indexer.original_drone_routes.len();
+        let total_vehicles = indexer.truck_routes.len() + indexer.drone_routes.len();
 
         for vehicle_i in 0..total_vehicles {
             for route_idx_i in 0..indexer.vehicle_index(vehicle_i).len() {
@@ -419,40 +428,38 @@ impl Neighborhood {
                                         continue; // Avoid changing route configuration
                                     }
 
-                                    let (mut truck_routes, mut drone_routes) = AnyRoute::from_solution(state.original);
-
-                                    if vehicle_k < truck_routes.len() {
-                                        truck_routes[vehicle_k][route_idx_k] = new_route_k.clone();
-                                    } else {
-                                        drone_routes[vehicle_k - truck_routes.len()][route_idx_k] = new_route_k.clone();
-                                    }
-
-                                    if vehicle_j < truck_routes.len() {
-                                        truck_routes[vehicle_j][route_idx_j] = new_route_j.clone();
-                                    } else {
-                                        drone_routes[vehicle_j - truck_routes.len()][route_idx_j] = new_route_j.clone();
-                                    }
+                                    let mut new_indexer = indexer.clone();
+                                    new_indexer.update(vehicle_k, route_idx_k, new_route_k.clone());
+                                    new_indexer.update(vehicle_j, route_idx_j, new_route_j.clone());
 
                                     match new_route_i {
                                         Some(new_route_i) => {
-                                            if vehicle_i < truck_routes.len() {
-                                                truck_routes[vehicle_i][route_idx_i] = new_route_i.clone();
-                                            } else {
-                                                drone_routes[vehicle_i - truck_routes.len()][route_idx_i] =
-                                                    new_route_i.clone();
-                                            }
+                                            new_indexer.update(vehicle_i, route_idx_i, new_route_i.clone());
                                         }
                                         None => {
-                                            if vehicle_i < truck_routes.len() {
-                                                truck_routes[vehicle_i].swap_remove(route_idx_i);
+                                            if vehicle_i < new_indexer.truck_routes.len() {
+                                                new_indexer.truck_routes[vehicle_i].swap_remove(route_idx_i);
                                             } else {
-                                                drone_routes[vehicle_i - truck_routes.len()].swap_remove(route_idx_i);
+                                                new_indexer.drone_routes[vehicle_i - new_indexer.truck_routes.len()]
+                                                    .swap_remove(route_idx_i);
                                             }
                                         }
                                     }
 
-                                    let s = AnyRoute::to_solution(truck_routes, drone_routes);
+                                    let s = AnyRoute::to_solution(new_indexer.truck_routes, new_indexer.drone_routes);
                                     if Self::_internal_update(state, &s, &tabu) {
+                                        // eprintln!(
+                                        //     "Ejection-chain ({:?} {:?} {:?})\n{:?}\n{:?}\n->\n{:?}\n{:?}",
+                                        //     indexer.route_index(vehicle_i, route_idx_i),
+                                        //     indexer.route_index(vehicle_j, route_idx_j),
+                                        //     indexer.route_index(vehicle_k, route_idx_k),
+                                        //     indexer.truck_routes,
+                                        //     indexer.drone_routes,
+                                        //     s.truck_routes,
+                                        //     s.drone_routes,
+                                        // );
+                                        s.verify();
+
                                         indexer = _IndexingHelper::from_solution(&s);
                                     }
                                 }
