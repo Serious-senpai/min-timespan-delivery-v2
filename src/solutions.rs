@@ -1135,6 +1135,20 @@ impl Solution {
             result = Rc::new(result.post_optimization());
         }
 
+        let pre_ejection_chain = result.clone();
+        let ejection_chain_improved = match Neighborhood::EjectionChain.search(
+            &result,
+            &mut vec![],
+            CONFIG.ejection_chain_iterations + 1,
+            result.cost(),
+        ) {
+            Some(s) => {
+                result = Rc::new(s);
+                pre_ejection_chain.cost() - result.cost()
+            }
+            None => 0.0,
+        };
+
         logger
             .finalize(
                 &result,
@@ -1143,6 +1157,7 @@ impl Solution {
                 adaptive_iterations,
                 adaptive.segment,
                 last_improved_iteration,
+                ejection_chain_improved,
             )
             .unwrap();
 

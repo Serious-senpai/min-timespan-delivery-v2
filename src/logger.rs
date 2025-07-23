@@ -27,6 +27,7 @@ struct RunJSON<'a> {
     config: &'a SerializedConfig,
     last_improved: usize,
     elapsed: f64,
+    ejection_chain_improved: f64,
 }
 
 pub struct Logger<'a> {
@@ -157,6 +158,7 @@ impl Logger<'_> {
         actual_adaptive_iterations: usize,
         total_adaptive_segments: usize,
         last_improved: usize,
+        ejection_chain_improved: f64,
     ) -> Result<(), Box<dyn Error>> {
         let elapsed = SystemTime::now().duration_since(UNIX_EPOCH).unwrap() - self._time_offset;
         let serialized_config = SerializedConfig::from(CONFIG.clone());
@@ -176,6 +178,7 @@ impl Logger<'_> {
                 config: &serialized_config,
                 last_improved,
                 elapsed: elapsed.as_micros() as f64 / 1e6,
+                ejection_chain_improved,
             })?
             .as_bytes(),
         )?;

@@ -41,7 +41,7 @@ fn main() {
             }
 
             let s = solutions::Solution::new(truck_routes, drone_routes);
-            logger.finalize(&s, 0, 0, 0, 0, 0).unwrap();
+            logger.finalize(&s, 0, 0, 0, 0, 0, 0.0).unwrap();
             s
         }
         cli::Commands::Run { .. } => {
