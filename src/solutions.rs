@@ -1136,15 +1136,20 @@ impl Solution {
         }
 
         let pre_ejection_chain = result.clone();
+        eprintln!("pre_ejection_chain = {}", pre_ejection_chain.cost());
         let ejection_chain_improved = match Neighborhood::EjectionChain.search(
             &result,
             &mut vec![],
-            CONFIG.ejection_chain_iterations + 1,
+            1,
             result.cost(),
         ) {
             Some(s) => {
-                result = Rc::new(s);
-                pre_ejection_chain.cost() - result.cost()
+                if s.feasible && s.cost() < pre_ejection_chain.cost() {
+                    result = Rc::new(s);
+                    pre_ejection_chain.cost() - result.cost()
+                } else {
+                    0.0
+                }
             }
             None => 0.0,
         };
