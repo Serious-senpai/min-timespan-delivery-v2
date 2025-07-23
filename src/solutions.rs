@@ -907,8 +907,7 @@ impl Solution {
         if !CONFIG.dry_run {
             let mut current = result.clone();
             let mut edge_records = vec![vec![f64::MAX; CONFIG.customers_count + 1]; CONFIG.customers_count + 1];
-            let mut elite_set = vec![];
-            elite_set.push(result.clone());
+            let mut reset_count = 3;
 
             let mut neighborhood_idx = 0;
 
@@ -928,7 +927,6 @@ impl Solution {
                 iteration: usize,
                 segment: usize,
                 edge_records: &mut [Vec<f64>],
-                elite_set: &mut Vec<Rc<Solution>>,
             ) {
                 if neighbor.cost() < result.cost() && neighbor.feasible {
                     *result = neighbor.clone();
@@ -943,19 +941,6 @@ impl Solution {
                                 *r = r.min(neighbor.working_time);
                             }
                         }
-                    }
-
-                    if CONFIG.max_elite_size > 0 {
-                        if elite_set.len() == CONFIG.max_elite_size {
-                            let (idx, _) = elite_set
-                                .iter()
-                                .enumerate()
-                                .min_by_key(|s| s.1.hamming_distance(result))
-                                .unwrap();
-                            elite_set.remove(idx);
-                        }
-
-                        elite_set.push(neighbor.clone());
                     }
                 }
             }
@@ -995,7 +980,7 @@ impl Solution {
                         extra,
                         current.cost(),
                         result.cost(),
-                        elite_set.len(),
+                        -1,
                         CONFIG.max_elite_size
                     );
                 }
@@ -1027,7 +1012,6 @@ impl Solution {
                         iteration,
                         adaptive.segment,
                         &mut edge_records,
-                        &mut elite_set,
                     );
 
                     current = neighbor;
@@ -1061,12 +1045,12 @@ impl Solution {
                     adaptive.segment_reset = adaptive.segment;
                     adaptive.weights = vec![1.0; NEIGHBORHOODS.len()];
 
-                    if elite_set.is_empty() {
+                    reset_count -= 1;
+                    if reset_count == 0 {
                         break;
                     }
 
-                    let i = rng.random_range(0..elite_set.len());
-                    current = Rc::new(elite_set.swap_remove(i).destroy_and_repair(&edge_records));
+                    current = Rc::new(current.destroy_and_repair(&edge_records));
                     for tabu_list in &mut tabu_lists {
                         tabu_list.clear();
                     }
@@ -1090,7 +1074,6 @@ impl Solution {
                                 iteration,
                                 adaptive.segment,
                                 &mut edge_records,
-                                &mut elite_set,
                             );
                         }
 

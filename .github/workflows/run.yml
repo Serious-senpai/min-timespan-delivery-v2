@@ -45,6 +45,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
+        destroy-rate: [0, 0.05, 0.1, 0.15]
         steps: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 
     steps:
@@ -86,7 +87,7 @@ jobs:
             echo "RUN #$i"
             for path in $(find problems/data/*)
             do
-              execute "./min-timespan-delivery run $path --disable-logging --extra ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+              execute "./min-timespan-delivery run $path --adaptive-iterations 35 --adaptive-segments 6 --destroy-rate ${{ matrix.destroy-rate }} --disable-logging --extra ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
             done
           done
 
@@ -96,7 +97,7 @@ jobs:
         uses: actions/upload-artifact@v4
         if: ${{ always() }}
         with:
-          name: output-${{ matrix.steps }}
+          name: output-${{ matrix.destroy-rate }}-${{ matrix.steps }}
           path: outputs/*
 
   summary:
