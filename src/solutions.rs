@@ -1053,8 +1053,8 @@ impl Solution {
                         if iteration % 500 == 0 {
                             for neighborhood_idx in 0..NEIGHBORHOODS.len() {
                                 if occurences[neighborhood_idx] > 0 {
-                                    weights[neighborhood_idx] = 0.7 * weights[neighborhood_idx]
-                                        + 0.3 * scores[neighborhood_idx] / occurences[neighborhood_idx] as f64;
+                                    weights[neighborhood_idx] = 0.4 * weights[neighborhood_idx]
+                                        + 0.6 * scores[neighborhood_idx] / occurences[neighborhood_idx] as f64;
                                 }
 
                                 scores[neighborhood_idx] = 0.0;
