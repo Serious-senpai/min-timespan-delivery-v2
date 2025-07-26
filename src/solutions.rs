@@ -1011,9 +1011,9 @@ impl Solution {
                     // Update adaptive state
                     if neighbor.feasible {
                         if neighbor.cost() < result.cost() {
-                            adaptive.scores[neighborhood_idx] += 0.5;
-                        } else if neighbor.cost() < current.cost() {
                             adaptive.scores[neighborhood_idx] += 0.3;
+                        } else if neighbor.cost() < current.cost() {
+                            adaptive.scores[neighborhood_idx] += 0.2;
                         } else {
                             adaptive.scores[neighborhood_idx] += 0.1;
                         }
