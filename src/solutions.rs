@@ -964,9 +964,9 @@ impl Solution {
                     // Update `scores` and `weights`
                     if neighbor.feasible {
                         if neighbor.cost() < result.cost() {
-                            scores[neighborhood_idx] += 0.5;
-                        } else if neighbor.cost() < current.cost() {
                             scores[neighborhood_idx] += 0.3;
+                        } else if neighbor.cost() < current.cost() {
+                            scores[neighborhood_idx] += 0.2;
                         } else {
                             scores[neighborhood_idx] += 0.1;
                         }
