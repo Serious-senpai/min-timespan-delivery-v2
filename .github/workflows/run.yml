@@ -45,6 +45,9 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
+        pattern: [500, 1000]
+        adaptive-segments: [5, 7, 10]
+        adaptive-iterations: [50, 60, 70]
         steps: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 
     steps:
@@ -85,12 +88,12 @@ jobs:
           for i in $(seq $begin $end)
           do
             echo "RUN #$i"
-            for path in $(find problems/data/*)
+            for path in $(find problems/data/${{ matrix.pattern }}.*)
             do
               customers=$(grep -oP "(?<=customers )\d+" $path)
-              if [ $customers -lt 1000 ]
+              if [ $customers -ge 500 ]
               then
-                execute "./min-timespan-delivery run $path --disable-logging --extra ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+                execute "./min-timespan-delivery run $path --max-elite-size 0 --adaptive-segments ${{ matrix.adaptive-segments }} --adaptive-iterations ${{ matrix.adaptive-iterations }} --disable-logging --extra ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
               fi
             done
           done
@@ -101,7 +104,7 @@ jobs:
         uses: actions/upload-artifact@v4
         if: ${{ always() }}
         with:
-          name: output-${{ matrix.steps }}
+          name: output-${{ matrix.pattern }}-${{ matrix.adaptive-segments }}-${{ matrix.adaptive-iterations }}-${{ matrix.steps }}
           path: outputs/*
 
   summary:
