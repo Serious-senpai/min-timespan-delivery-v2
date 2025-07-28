@@ -75,7 +75,8 @@ jobs:
             $command
 
             status=$?
-            if [ $status -ne 0 ]; then
+            if [ $status -ne 0 ]
+            then
               echo "::error::\"$command\" exit with status $status"
               exitcode=1
             fi
@@ -86,7 +87,11 @@ jobs:
             echo "RUN #$i"
             for path in $(find problems/data/*)
             do
-              execute "./min-timespan-delivery run $path --disable-logging --extra ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+              customers=$(grep -oP "(?<=customers )\d+" $path)
+              if [ $customers -lt 1000 ]
+              then
+                execute "./min-timespan-delivery run $path --disable-logging --extra ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+              fi
             done
           done
 
