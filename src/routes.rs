@@ -318,6 +318,52 @@ pub trait Route: Sized {
                     }
                 }
             }
+            Neighborhood::CrossExchange => {
+                // Inefficient implementation, but i'm just too lazy.
+                for mut l_i in 1..length_i - 1 {
+                    for r_i in 1 + l_i..length_i - 1 {
+                        for mut l_j in 1..length_j - 1 {
+                            for r_j in 1 + l_j..length_j - 1 {
+                                // Swap 2 segments customers_i[l_i..r_i] and customers_j[l_j..r_j]
+                                let ok = loop {
+                                    if l_i >= r_i || l_j >= r_j {
+                                        break true;
+                                    }
+
+                                    if !T::_servable(buffer_i[l_i]) || !Self::_servable(buffer_j[l_j]) {
+                                        break false;
+                                    }
+
+                                    swap(&mut buffer_i[l_i], &mut buffer_j[l_j]);
+                                    l_i += 1;
+                                    l_j += 1;
+                                };
+
+                                if ok {
+                                    for _ in l_i..r_i {
+                                        buffer_j.insert(l_j, buffer_i.remove(l_i));
+                                    }
+                                    for _ in l_j..r_j {
+                                        buffer_i.insert(l_i, buffer_j.remove(l_j));
+                                    }
+
+                                    let ptr_i = Self::new(buffer_i.clone());
+                                    let ptr_j = T::new(buffer_j.clone());
+                                    let tabu = customers_i[l_i..r_i]
+                                        .iter()
+                                        .chain(customers_j[l_j..r_j].iter())
+                                        .cloned()
+                                        .collect();
+                                    results.push((Some(ptr_i), Some(ptr_j), tabu));
+                                }
+
+                                buffer_i = customers_i.clone();
+                                buffer_j = customers_j.clone();
+                            }
+                        }
+                    }
+                }
+            }
             _ => panic!("inter_route called with invalid neighborhood {neighborhood}"),
         }
 

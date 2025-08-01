@@ -14,6 +14,7 @@ pub enum Neighborhood {
     Move22,
     TwoOpt,
     EjectionChain,
+    CrossExchange,
 }
 
 impl Display for Neighborhood {
@@ -29,6 +30,7 @@ impl Display for Neighborhood {
                 Self::Move22 => "Move (2, 2)".to_string(),
                 Self::TwoOpt => "2-opt".to_string(),
                 Self::EjectionChain => "Ejection-chain".to_string(),
+                Self::CrossExchange => "Cross-exchange".to_string(),
             }
         )
     }
@@ -496,7 +498,13 @@ impl Neighborhood {
         };
 
         match self {
-            Self::Move10 | Self::Move11 | Self::Move20 | Self::Move21 | Self::Move22 | Self::TwoOpt => {
+            Self::Move10
+            | Self::Move11
+            | Self::Move20
+            | Self::Move21
+            | Self::Move22
+            | Self::TwoOpt
+            | Self::CrossExchange => {
                 (truck_cloned, drone_cloned) = if is_truck {
                     self._inter_route_internal::<TruckRoute>(&mut state, truck_cloned, drone_cloned, vehicle_i)
                 } else {

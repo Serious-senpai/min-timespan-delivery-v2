@@ -270,6 +270,12 @@ impl Solution {
                     }
                 }
             }
+
+            let (best, _) = Neighborhood::CrossExchange.inter_route(&result, &mut vec![], result.cost());
+            if best.cost() < result.cost() && best.feasible {
+                result = Rc::new(best);
+                improved = true;
+            }
         }
 
         Self::clone(&result)
@@ -904,6 +910,7 @@ impl Solution {
             occurences: vec![0; NEIGHBORHOODS.len()],
         };
 
+        let mut post_optimization = 0.0;
         if !CONFIG.dry_run {
             let mut current = result.clone();
             let mut edge_records = vec![vec![f64::MAX; CONFIG.customers_count + 1]; CONFIG.customers_count + 1];
@@ -1149,7 +1156,9 @@ impl Solution {
                 eprintln!();
             }
 
+            let preresult_cost = result.cost();
             result = Rc::new(result.post_optimization());
+            post_optimization = preresult_cost - result.cost();
         }
 
         logger
@@ -1160,6 +1169,7 @@ impl Solution {
                 adaptive_iterations,
                 adaptive.segment,
                 last_improved_iteration,
+                post_optimization,
             )
             .unwrap();
 
