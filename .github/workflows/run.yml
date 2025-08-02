@@ -46,8 +46,77 @@ jobs:
       fail-fast: false
       matrix:
         adaptive-segments: [5, 6, 7, 8, 9, 10]
+        adaptive-iterations: [50, 60, 70, 80, 90, 100]
+        steps: [0, 1, 2, 3, 4]
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Download executable
+        uses: actions/download-artifact@v4
+        with:
+          name: executable
+          path: .
+
+      - name: Update permission
+        run: chmod +x min-timespan-delivery
+
+      - name: Run algorithm
+        run: |
+          exitcode=0
+          set +e
+          let begin=2*${{ matrix.steps }}+1
+          let end=$begin+1
+
+          execute() {
+            command=$1
+            echo "Running \"$command\""
+            $command
+
+            status=$?
+            if [ $status -ne 0 ]
+            then
+              echo "::error::\"$command\" exit with status $status"
+              exitcode=1
+            fi
+          }
+
+          for i in $(seq $begin $end)
+          do
+            echo "RUN #$i"
+            for path in $(find problems/data/*)
+            do
+              customers=$(grep -oP "(?<=customers )\d+" $path)
+              if [ $customers -lt 500 ]
+              then
+                execute "./min-timespan-delivery run $path --max-elite-size 0 --adaptive-segments ${{ matrix.adaptive-segments }} --adaptive-iterations ${{ matrix.adaptive-iterations }} --disable-logging --extra ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+              fi
+            done
+          done
+
+          exit $exitcode
+
+      - name: Upload results
+        uses: actions/upload-artifact@v4
+        if: ${{ always() }}
+        with:
+          name: output-${{ matrix.adaptive-segments }}-${{ matrix.adaptive-iterations }}-${{ matrix.steps }}
+          path: outputs/*
+
+  solve-500:
+    name: Run algorithm
+    runs-on: ubuntu-latest
+    needs: build
+    strategy:
+      fail-fast: false
+      matrix:
+        pattern: ["500.10", "500.20", "500.30", "500.40"]
+        adaptive-segments: [5, 6, 7, 8, 9, 10]
         adaptive-iterations: [50, 60, 70]
-        steps: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+        steps: [0]
 
     steps:
       - name: Checkout repository
@@ -87,13 +156,9 @@ jobs:
           for i in $(seq $begin $end)
           do
             echo "RUN #$i"
-            for path in $(find problems/data/*)
+            for path in $(find problems/data/${{ matrix.pattern }}.*)
             do
-              customers=$(grep -oP "(?<=customers )\d+" $path)
-              if [ $customers -lt 500 ]
-              then
-                execute "./min-timespan-delivery run $path --max-elite-size 0 --adaptive-segments ${{ matrix.adaptive-segments }} --adaptive-iterations ${{ matrix.adaptive-iterations }} --disable-logging --extra ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
-              fi
+              execute "./min-timespan-delivery run $path --max-elite-size 0 --adaptive-segments ${{ matrix.adaptive-segments }} --adaptive-iterations ${{ matrix.adaptive-iterations }} --disable-logging --extra ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
             done
           done
 
@@ -103,14 +168,144 @@ jobs:
         uses: actions/upload-artifact@v4
         if: ${{ always() }}
         with:
-          name: output-${{ matrix.adaptive-segments }}-${{ matrix.adaptive-iterations }}-${{ matrix.steps }}
+          name: output-${{ matrix.pattern }}-${{ matrix.adaptive-segments }}-${{ matrix.adaptive-iterations }}-${{ matrix.steps }}
+          path: outputs/*
+
+  solve-1000a:
+    name: Run algorithm
+    runs-on: ubuntu-latest
+    needs: build
+    strategy:
+      fail-fast: false
+      matrix:
+        pattern: [1000.10.1, 1000.10.2, 1000.10.3, 1000.10.4, 1000.20.1, 1000.20.2, 1000.20.3, 1000.20.4]
+        adaptive-segments: [5, 6, 7, 8, 9, 10]
+        adaptive-iterations: [50, 60, 70]
+        steps: [0]
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Download executable
+        uses: actions/download-artifact@v4
+        with:
+          name: executable
+          path: .
+
+      - name: Update permission
+        run: chmod +x min-timespan-delivery
+
+      - name: Run algorithm
+        run: |
+          exitcode=0
+          set +e
+          let begin=${{ matrix.steps }}+1
+          let end=$begin+0
+
+          execute() {
+            command=$1
+            echo "Running \"$command\""
+            $command
+
+            status=$?
+            if [ $status -ne 0 ]
+            then
+              echo "::error::\"$command\" exit with status $status"
+              exitcode=1
+            fi
+          }
+
+          for i in $(seq $begin $end)
+          do
+            echo "RUN #$i"
+            for path in $(find problems/data/${{ matrix.pattern }}.*)
+            do
+              execute "./min-timespan-delivery run $path --max-elite-size 0 --adaptive-segments ${{ matrix.adaptive-segments }} --adaptive-iterations ${{ matrix.adaptive-iterations }} --disable-logging --extra ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+            done
+          done
+
+          exit $exitcode
+
+      - name: Upload results
+        uses: actions/upload-artifact@v4
+        if: ${{ always() }}
+        with:
+          name: output-${{ matrix.pattern }}-${{ matrix.adaptive-segments }}-${{ matrix.adaptive-iterations }}-${{ matrix.steps }}
+          path: outputs/*
+
+  solve-1000b:
+    name: Run algorithm
+    runs-on: ubuntu-latest
+    needs: build
+    strategy:
+      fail-fast: false
+      matrix:
+        pattern: [1000.30.1, 1000.30.2, 1000.30.3, 1000.30.4, 1000.40.1, 1000.40.2, 1000.40.3, 1000.40.4]
+        adaptive-segments: [5, 6, 7, 8, 9, 10]
+        adaptive-iterations: [50, 60, 70]
+        steps: [0]
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Download executable
+        uses: actions/download-artifact@v4
+        with:
+          name: executable
+          path: .
+
+      - name: Update permission
+        run: chmod +x min-timespan-delivery
+
+      - name: Run algorithm
+        run: |
+          exitcode=0
+          set +e
+          let begin=${{ matrix.steps }}+1
+          let end=$begin+0
+
+          execute() {
+            command=$1
+            echo "Running \"$command\""
+            $command
+
+            status=$?
+            if [ $status -ne 0 ]
+            then
+              echo "::error::\"$command\" exit with status $status"
+              exitcode=1
+            fi
+          }
+
+          for i in $(seq $begin $end)
+          do
+            echo "RUN #$i"
+            for path in $(find problems/data/${{ matrix.pattern }}.*)
+            do
+              execute "./min-timespan-delivery run $path --max-elite-size 0 --adaptive-segments ${{ matrix.adaptive-segments }} --adaptive-iterations ${{ matrix.adaptive-iterations }} --disable-logging --extra ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+            done
+          done
+
+          exit $exitcode
+
+      - name: Upload results
+        uses: actions/upload-artifact@v4
+        if: ${{ always() }}
+        with:
+          name: output-${{ matrix.pattern }}-${{ matrix.adaptive-segments }}-${{ matrix.adaptive-iterations }}-${{ matrix.steps }}
           path: outputs/*
 
   summary:
     name: Summarize results
     runs-on: ubuntu-latest
     if: ${{ always() }}
-    needs: solve
+    needs: [solve, solve-500, solve-1000a, solve-1000b]
 
     steps:
       - name: Checkout repository
