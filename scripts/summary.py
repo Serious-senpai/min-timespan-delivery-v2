@@ -86,6 +86,7 @@ if __name__ == "__main__":
             "Drone routes count",
             "Strategy",
             "Post-optimization [minute]",
+            "Post-optimization elapsed [s]",
         ]
         csv.write(",".join(headers))
         csv.write("\n")
@@ -239,6 +240,7 @@ if __name__ == "__main__":
                         str(drone_route_count),
                         config["strategy"],
                         str(data["post_optimization"] / 60),
+                        str(data["post_optimization_elapsed"],)
                     ]
                     csv.write(",".join(segments) + "\n")
                     row += 1

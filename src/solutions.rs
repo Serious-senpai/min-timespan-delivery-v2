@@ -3,6 +3,7 @@ use std::marker::PhantomData;
 use std::rc::Rc;
 use std::sync::LazyLock;
 use std::sync::atomic::Ordering;
+use std::time::SystemTime;
 use std::{cmp, fmt};
 
 use rand::distr::weighted::WeightedIndex;
@@ -269,6 +270,12 @@ impl Solution {
                         improved = true;
                     }
                 }
+            }
+
+            let (best, _) = Neighborhood::EjectionChain.inter_route(&result, &[], result.cost());
+            if best.cost() < result.cost() && best.feasible {
+                result = Rc::new(best);
+                improved = true;
             }
 
             let (best, _) = Neighborhood::CrossExchange.inter_route(&result, &[], result.cost());
@@ -911,6 +918,7 @@ impl Solution {
         };
 
         let mut post_optimization = 0.0;
+        let mut post_optimization_elapsed = 0.0;
         if !CONFIG.dry_run {
             let mut current = result.clone();
             let mut edge_records = vec![vec![f64::MAX; CONFIG.customers_count + 1]; CONFIG.customers_count + 1];
@@ -1157,8 +1165,13 @@ impl Solution {
             }
 
             let preresult_cost = result.cost();
+            let preresult_time_offset = SystemTime::now();
             result = Rc::new(result.post_optimization());
             post_optimization = preresult_cost - result.cost();
+            post_optimization_elapsed = SystemTime::now()
+                .duration_since(preresult_time_offset)
+                .unwrap()
+                .as_secs_f64();
         }
 
         logger
@@ -1170,6 +1183,7 @@ impl Solution {
                 adaptive.segment,
                 last_improved_iteration,
                 post_optimization,
+                post_optimization_elapsed,
             )
             .unwrap();
 

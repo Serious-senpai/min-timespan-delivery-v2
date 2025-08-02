@@ -4,7 +4,7 @@ use std::io;
 use std::io::Write;
 use std::path::Path;
 use std::rc::Rc;
-use std::time::{Duration, SystemTime, UNIX_EPOCH};
+use std::time::SystemTime;
 
 use rand::Rng;
 use rand::distr::Alphanumeric;
@@ -28,11 +28,12 @@ struct RunJSON<'a> {
     last_improved: usize,
     elapsed: f64,
     post_optimization: f64,
+    post_optimization_elapsed: f64,
 }
 
 pub struct Logger<'a> {
     _iteration: usize,
-    _time_offset: Duration,
+    _time_offset: SystemTime,
 
     _outputs: &'a Path,
     _problem: String,
@@ -93,7 +94,7 @@ impl Logger<'_> {
 
         Ok(Logger {
             _iteration: 0,
-            _time_offset: SystemTime::now().duration_since(UNIX_EPOCH).unwrap(),
+            _time_offset: SystemTime::now(),
             _outputs: outputs,
             _id: id,
             _problem: problem,
@@ -159,8 +160,12 @@ impl Logger<'_> {
         total_adaptive_segments: usize,
         last_improved: usize,
         post_optimization: f64,
+        post_optimization_elapsed: f64,
     ) -> Result<(), Box<dyn Error>> {
-        let elapsed = SystemTime::now().duration_since(UNIX_EPOCH).unwrap() - self._time_offset;
+        let elapsed = SystemTime::now()
+            .duration_since(self._time_offset)
+            .unwrap()
+            .as_secs_f64();
         let serialized_config = SerializedConfig::from(CONFIG.clone());
 
         let json_path = self._outputs.join(format!("{}-{}.json", self._problem, self._id));
@@ -177,8 +182,9 @@ impl Logger<'_> {
                 solution: result,
                 config: &serialized_config,
                 last_improved,
-                elapsed: elapsed.as_micros() as f64 / 1e6,
+                elapsed,
                 post_optimization,
+                post_optimization_elapsed,
             })?
             .as_bytes(),
         )?;
