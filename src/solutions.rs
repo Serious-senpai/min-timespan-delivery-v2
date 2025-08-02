@@ -271,7 +271,7 @@ impl Solution {
                 }
             }
 
-            let (best, _) = Neighborhood::CrossExchange.inter_route(&result, &mut vec![], result.cost());
+            let (best, _) = Neighborhood::CrossExchange.inter_route(&result, &[], result.cost());
             if best.cost() < result.cost() && best.feasible {
                 result = Rc::new(best);
                 improved = true;

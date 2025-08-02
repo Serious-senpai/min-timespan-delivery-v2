@@ -352,13 +352,13 @@ pub trait Route: Sized {
                                     let tabu = customers_i[l_i..r_i]
                                         .iter()
                                         .chain(customers_j[l_j..r_j].iter())
-                                        .cloned()
+                                        .copied()
                                         .collect();
                                     results.push((Some(ptr_i), Some(ptr_j), tabu));
                                 }
 
-                                buffer_i = customers_i.clone();
-                                buffer_j = customers_j.clone();
+                                buffer_i.clone_from(customers_i);
+                                buffer_j.clone_from(customers_j);
                             }
                         }
                     }
