@@ -237,7 +237,7 @@ pub enum Commands {
         /// Exponent value E attached to the cost function:
         ///
         /// Cost(S) = [working time] * (1 + [weighted penalty values]).powf(E)
-        #[arg(long, default_value_t = 0.4)]
+        #[arg(long, default_value_t = 0.5)]
         penalty_exponent: f64,
 
         /// Allow one route per truck only (this route can still serve multiple customers)

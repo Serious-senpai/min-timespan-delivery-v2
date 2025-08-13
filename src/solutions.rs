@@ -1168,7 +1168,7 @@ impl Solution {
 
             let preresult_cost = result.cost();
             let preresult_time_offset = SystemTime::now();
-            result = Rc::new(result.post_optimization());
+            // result = Rc::new(result.post_optimization());
             post_optimization = preresult_cost - result.cost();
             post_optimization_elapsed = SystemTime::now()
                 .duration_since(preresult_time_offset)
