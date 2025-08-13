@@ -168,7 +168,7 @@ pub enum Commands {
         #[arg(long, default_value_t = 35)]
         adaptive_iterations: usize,
 
-        /// Infer --adaptive-iterations as a fixed number of iterations per adaptive segment.
+        /// Fixed number of iterations per adaptive segment = [--adaptive-iterations] * [Base]
         #[arg(long)]
         adaptive_fixed_iterations: bool,
 
