@@ -105,6 +105,8 @@ static NEIGHBORHOODS: LazyLock<[Neighborhood; 6]> = LazyLock::new(|| {
     ]
 });
 
+const TOLERANCE: f64 = 0.001;
+
 pub fn penalty_coeff<const N: usize>() -> f64 {
     PENALTY_COEFF[N].load(Ordering::Relaxed)
 }
@@ -265,7 +267,7 @@ impl Solution {
             improved = false;
             for neighborhood in NEIGHBORHOODS.iter() {
                 if let Some(best) = neighborhood.search(&result, &mut vec![], 0, result.cost()) {
-                    if best.cost() < result.cost() && best.feasible {
+                    if best.cost() + TOLERANCE < result.cost() && best.feasible {
                         result = Rc::new(best);
                         improved = true;
                     }
@@ -273,13 +275,13 @@ impl Solution {
             }
 
             let (best, _) = Neighborhood::EjectionChain.inter_route(&result, &[], result.cost());
-            if best.cost() < result.cost() && best.feasible {
+            if best.cost() + TOLERANCE < result.cost() && best.feasible {
                 result = Rc::new(best);
                 improved = true;
             }
 
             let (best, _) = Neighborhood::CrossExchange.inter_route(&result, &[], result.cost());
-            if best.cost() < result.cost() && best.feasible {
+            if best.cost() + TOLERANCE < result.cost() && best.feasible {
                 result = Rc::new(best);
                 improved = true;
             }
@@ -945,7 +947,7 @@ impl Solution {
                 edge_records: &mut [Vec<f64>],
                 elite_set: &mut Vec<Rc<Solution>>,
             ) {
-                if neighbor.cost() < result.cost() && neighbor.feasible {
+                if neighbor.cost() + TOLERANCE < result.cost() && neighbor.feasible {
                     *result = neighbor.clone();
                     *last_improved_iteration = iteration;
                     *last_improved_segment = segment;
@@ -1025,7 +1027,7 @@ impl Solution {
 
                     // Update adaptive state
                     if neighbor.feasible {
-                        if neighbor.cost() < result.cost() {
+                        if neighbor.cost() + TOLERANCE < result.cost() {
                             adaptive.scores[neighborhood_idx] += 0.3;
                         } else if neighbor.cost() < current.cost() {
                             adaptive.scores[neighborhood_idx] += 0.2;
