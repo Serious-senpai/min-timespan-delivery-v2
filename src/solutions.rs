@@ -885,11 +885,7 @@ impl Solution {
         let base_hyperparameter = CONFIG.customers_count as f64 / total_vehicle as f64;
         let tabu_size = (CONFIG.tabu_size_factor * base_hyperparameter) as usize;
 
-        let adaptive_iterations = if CONFIG.adaptive_fixed_iterations {
-            CONFIG.adaptive_iterations
-        } else {
-            CONFIG.adaptive_iterations * base_hyperparameter as usize
-        };
+        let adaptive_iterations = (CONFIG.adaptive_iterations as f64 * base_hyperparameter) as usize;
 
         let reset_after = if CONFIG.fix_iteration.is_some() {
             i64::MAX as usize // usize::MAX cannot be stored in SQLite
