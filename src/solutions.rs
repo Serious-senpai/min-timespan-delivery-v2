@@ -971,7 +971,7 @@ impl Solution {
                             scores[neighborhood_idx] += 0.1;
                         }
                     }
-
+//147
                     _record_new_solution(
                         &neighbor,
                         &mut result,
