@@ -9,6 +9,42 @@ from pathlib import Path
 from typing import Any, TYPE_CHECKING
 
 
+compare = {
+    "100.10.1": 22.31298872,
+    "100.10.2": 23.54298188,
+    "100.10.3": 22.71699385,
+    "100.10.4": 20.8940764,
+    "100.20.1": 43.31821568,
+    "100.20.2": 44.43574084,
+    "100.20.3": 42.32780332,
+    "100.20.4": 51.55685171,
+    "50.10.1": 23.17082725,
+    "50.10.2": 21.94129384,
+    "50.10.3": 21.89158729,
+    "50.10.4": 21.51980016,
+    "50.20.1": 40.17998894,
+    "50.20.2": 39.61689848,
+    "50.20.3": 44.80287273,
+    "50.20.4": 44.24140392,
+    "50.30.1": 67.77205972,
+    "50.30.2": 57.73853584,
+    "50.30.3": 68.32947239,
+    "50.30.4": 65.76833781,
+    "50.40.1": 77.73020875,
+    "50.40.2": 71.64303362,
+    "50.40.3": 74.17431791,
+    "50.40.4": 74.29395893,
+    "100.40.1": 76.55174599,
+    "100.40.2": 73.31744929,
+    "100.40.3": 75.98348396,
+    "100.40.4": 74.53894884,
+    "100.30.1": 60.96531647,
+    "100.30.2": 71.06449648,
+    "100.30.3": 68.56574676,
+    "100.30.4": 69.97970497,
+}
+
+
 class Namespace(argparse.Namespace):
     if TYPE_CHECKING:
         directory: Path
@@ -28,28 +64,6 @@ if __name__ == "__main__":
     output_db = directory / "summary.db"
 
     pattern = re.compile(r"^.+?-\w{8}(?<!solution)\.json$")
-    saleu = {
-        "CMT1": 168,
-        "CMT2": 130.23,
-        "CMT3": 184,
-        "CMT4": 160.38,
-        "CMT5": 138,
-        "E-n51-k5": 168,
-        "E-n76-k8": 154,
-        "E-n101-k8": 186,
-        "M-n151-k12": 154,
-        "M-n200-k16": 144,
-        "P-n51-k10": 111.07,
-        "P-n55-k7": 128,
-        "P-n60-k10": 114,
-        "P-n65-k10": 126,
-        "P-n70-k10": 129.29,
-        "P-n76-k5": 202,
-        "P-n101-k4": 342.69,
-        "X-n110-k13": 1864,
-        "X-n115-k10": 2258,
-        "X-n139-k10": 2928.64,
-    }
 
     with output_csv.open("w", encoding="utf-8") as csv:
         csv.write("sep=,\n")
@@ -79,7 +93,7 @@ if __name__ == "__main__":
             "Endurance fixed time [s]",
             "Endurance drone speed [m/s]",
             "Cost [minute]",
-            "Saleu cost",
+            "PTDS-DDS cost",
             "Improved [%]",
             "Capacity violation [kg]",
             "Energy violation [J]",
@@ -174,7 +188,7 @@ if __name__ == "__main__":
                     with open(dirpath / filename, "r", encoding="utf-8") as reader:
                         data = json.load(reader)
 
-                    problem, *_ = data["problem"].split("_")
+                    problem = data["problem"]
 
                     truck_routes = data["solution"]["truck_routes"]
                     drone_routes = data["solution"]["drone_routes"]
@@ -213,8 +227,8 @@ if __name__ == "__main__":
                         str(config["truck"]["V_max (m/s)"]),
                         str(config["drone"]["_data"].get("FixedTime (s)", -1)),
                         str(config["drone"]["_data"].get("V_max (m/s)", -1)),
-                        str(data["solution"]["working_time"]),
-                        str(saleu[problem]),
+                        str(data["solution"]["working_time"] / 60),
+                        str(compare[problem]),
                         wrap(f"=ROUND(100 * (Z{row} - Y{row}) / ABS(Z{row}), 2)"),
                         str(data["solution"]["capacity_violation"]),
                         str(data["solution"]["energy_violation"]),
