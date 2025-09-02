@@ -24,7 +24,7 @@ jobs:
         run: lscpu
 
       - name: Setup Rust
-        run: curl --proto '=https' --tlsv1.2 https://sh.rustup.rs -sSf | sh -s -- --default-toolchain=1.88 -y
+        run: curl --proto '=https' --tlsv1.2 https://sh.rustup.rs -sSf | sh -s -- --default-toolchain=1.89 -y
 
       - name: Compile source files
         run: cargo build --release

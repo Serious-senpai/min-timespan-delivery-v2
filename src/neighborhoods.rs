@@ -14,7 +14,7 @@ pub enum Neighborhood {
     Move22,
     TwoOpt,
     EjectionChain,
-    CrossExchange,
+    // CrossExchange,
 }
 
 impl Display for Neighborhood {
@@ -30,7 +30,7 @@ impl Display for Neighborhood {
                 Self::Move22 => "Move (2, 2)".to_string(),
                 Self::TwoOpt => "2-opt".to_string(),
                 Self::EjectionChain => "Ejection-chain".to_string(),
-                Self::CrossExchange => "Cross-exchange".to_string(),
+                // Self::CrossExchange => "Cross-exchange".to_string(),
             }
         )
     }
@@ -148,15 +148,17 @@ impl Neighborhood {
                     }
 
                     for (new_route_i, new_route_j, tabu) in neighbors {
-                        if let Some(ref new_route_i) = new_route_i {
-                            if RI::single_customer() && new_route_i.data().customers.len() != 3 {
-                                continue;
-                            }
+                        if let Some(ref new_route_i) = new_route_i
+                            && RI::single_customer()
+                            && new_route_i.data().customers.len() != 3
+                        {
+                            continue;
                         }
-                        if let Some(ref new_route_j) = new_route_j {
-                            if RJ::single_customer() && new_route_j.data().customers.len() != 3 {
-                                continue;
-                            }
+                        if let Some(ref new_route_j) = new_route_j
+                            && RJ::single_customer()
+                            && new_route_j.data().customers.len() != 3
+                        {
+                            continue;
                         }
 
                         // Temporary assign new routes.
@@ -504,7 +506,8 @@ impl Neighborhood {
             | Self::Move21
             | Self::Move22
             | Self::TwoOpt
-            | Self::CrossExchange => {
+            // | Self::CrossExchange
+            => {
                 (truck_cloned, drone_cloned) = if is_truck {
                     self._inter_route_internal::<TruckRoute>(&mut state, truck_cloned, drone_cloned, vehicle_i)
                 } else {

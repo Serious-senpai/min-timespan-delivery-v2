@@ -259,36 +259,36 @@ impl Solution {
         self_repr.iter().zip(other_repr.iter()).filter(|(a, b)| a != b).count()
     }
 
-    pub fn post_optimization(&self) -> Self {
-        let mut result = Rc::new(self.clone());
+    // pub fn post_optimization(&self) -> Self {
+    //     let mut result = Rc::new(self.clone());
 
-        let mut improved = true;
-        while improved {
-            improved = false;
-            for neighborhood in NEIGHBORHOODS.iter() {
-                if let Some(best) = neighborhood.search(&result, &mut vec![], 0, result.cost()) {
-                    if best.cost() + TOLERANCE < result.cost() && best.feasible {
-                        result = Rc::new(best);
-                        improved = true;
-                    }
-                }
-            }
+    //     let mut improved = true;
+    //     while improved {
+    //         improved = false;
+    //         for neighborhood in NEIGHBORHOODS.iter() {
+    //             if let Some(best) = neighborhood.search(&result, &mut vec![], 0, result.cost()) {
+    //                 if best.cost() + TOLERANCE < result.cost() && best.feasible {
+    //                     result = Rc::new(best);
+    //                     improved = true;
+    //                 }
+    //             }
+    //         }
 
-            let (best, _) = Neighborhood::EjectionChain.inter_route(&result, &[], result.cost());
-            if best.cost() + TOLERANCE < result.cost() && best.feasible {
-                result = Rc::new(best);
-                improved = true;
-            }
+    //         let (best, _) = Neighborhood::EjectionChain.inter_route(&result, &[], result.cost());
+    //         if best.cost() + TOLERANCE < result.cost() && best.feasible {
+    //             result = Rc::new(best);
+    //             improved = true;
+    //         }
 
-            let (best, _) = Neighborhood::CrossExchange.inter_route(&result, &[], result.cost());
-            if best.cost() + TOLERANCE < result.cost() && best.feasible {
-                result = Rc::new(best);
-                improved = true;
-            }
-        }
+    //         let (best, _) = Neighborhood::CrossExchange.inter_route(&result, &[], result.cost());
+    //         if best.cost() + TOLERANCE < result.cost() && best.feasible {
+    //             result = Rc::new(best);
+    //             improved = true;
+    //         }
+    //     }
 
-        Self::clone(&result)
-    }
+    //     Self::clone(&result)
+    // }
 
     pub fn initialize() -> Self {
         fn _sort_cluster_with_starting_point(cluster: &mut [usize], mut start: usize, distance: &[Vec<f64>]) {
