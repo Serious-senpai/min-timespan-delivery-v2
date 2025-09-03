@@ -165,7 +165,7 @@ pub enum Commands {
         tabu_size_factor: f64,
 
         /// Number of non-improved iterations per adaptive segment = [--adaptive-iterations] * [Base]
-        #[arg(long, default_value_t = 35)]
+        #[arg(long, default_value_t = 60)]
         adaptive_iterations: usize,
 
         /// Fixed number of iterations per adaptive segment = [--adaptive-iterations] * [Base]
@@ -174,7 +174,7 @@ pub enum Commands {
 
         /// Number of non-improved segments before resetting the current solution = [--adaptive-segments]
         /// (note: in "adaptive" strategy, "--reset-after-factor" is ignored)
-        #[arg(long, default_value_t = 6)]
+        #[arg(long, default_value_t = 7)]
         adaptive_segments: usize,
 
         /// Infer --adaptive-segments as a fixed number of segments per reset.
