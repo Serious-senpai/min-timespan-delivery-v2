@@ -1,6 +1,12 @@
 name: Compare to PTDS-DDSS
 
-on: workflow_dispatch
+on:
+  workflow_dispatch:
+    inputs:
+      extra-arguments:
+        default: ""
+        required: true
+        type: string
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -45,7 +51,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        steps: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+        steps: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 
     steps:
       - name: Checkout repository
@@ -87,7 +93,7 @@ jobs:
             for i in $(seq $begin $end)
             do
               echo "RUN #$i"
-              execute "./min-timespan-delivery $arguments --single-truck-route --disable-logging --extra ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+              execute "./min-timespan-delivery $arguments ${{ inputs.extra-arguments }} --single-truck-route --disable-logging --extra ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
             done
           done
 
