@@ -1,4 +1,4 @@
-name: Compare to PTDS-DDSS
+name: Compare to PTDS-DDSS (multi-route)
 
 on: workflow_dispatch
 
@@ -87,7 +87,7 @@ jobs:
             for i in $(seq $begin $end)
             do
               echo "RUN #$i"
-              execute "./min-timespan-delivery $arguments --single-truck-route --disable-logging --extra ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+              execute "./min-timespan-delivery $arguments --disable-logging --extra ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
             done
           done
 

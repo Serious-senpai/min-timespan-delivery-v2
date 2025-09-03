@@ -10,6 +10,7 @@ from typing import TYPE_CHECKING
 class Namespace(argparse.Namespace):
     if TYPE_CHECKING:
         problem: Path
+        single_truck_route: bool
 
 
 ROOT = Path(__file__).parent.parent.resolve()
@@ -75,6 +76,5 @@ if __name__ == "__main__":
 
     print(
         f"run {args.problem} --truck-cfg {truck.name} --drone-cfg {drone.name} -c endurance "
-        "--truck-distance euclidean --drone-distance euclidean --waiting-time-limit 3600 "
-        "--single-truck-route",
+        "--truck-distance euclidean --drone-distance euclidean --waiting-time-limit 3600 ",
     )
