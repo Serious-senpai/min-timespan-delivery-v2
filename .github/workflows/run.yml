@@ -98,7 +98,7 @@ jobs:
         uses: actions/upload-artifact@v4
         if: ${{ always() }}
         with:
-          name: output-${{ matrix.steps }}
+          name: output-${{ matrix.problem }}-${{ matrix.steps }}
           path: outputs/*
 
   summary:
