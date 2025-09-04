@@ -90,7 +90,7 @@ jobs:
               customers=$(grep -oP "(?<=customers )\d+" $path)
               if [ $customers -lt 500 ]
               then
-                execute "./min-timespan-delivery run $path --disable-logging --extra ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+                execute "./min-timespan-delivery run $path --single-truck-route --disable-logging --extra ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
               fi
             done
           done
