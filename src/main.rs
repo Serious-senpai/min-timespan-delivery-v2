@@ -2,6 +2,7 @@ use std::fs;
 
 use clap::Parser;
 use colored::Colorize;
+use mimalloc::MiMalloc;
 use routes::Route;
 
 mod cli;
@@ -12,6 +13,9 @@ mod logger;
 mod neighborhoods;
 mod routes;
 mod solutions;
+
+#[global_allocator]
+static GLOBAL: MiMalloc = MiMalloc;
 
 fn main() {
     let mut logger = logger::Logger::new().unwrap();
