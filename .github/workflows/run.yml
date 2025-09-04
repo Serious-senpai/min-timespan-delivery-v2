@@ -94,7 +94,7 @@ jobs:
                 while [ $trucks_count -gt 1 ]
                 do
                   let trucks_count=trucks_count-1
-                  execute "./min-timespan-delivery run $path --trucks-count $trucks_count --disable-logging --extra ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+                  execute "./min-timespan-delivery run $path --trucks-count $trucks_count --single-truck-route --disable-logging --extra ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
                 done
               fi
             done
