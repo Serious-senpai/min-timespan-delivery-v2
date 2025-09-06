@@ -252,8 +252,9 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
+        problem: [500.10.1, 500.10.2, 500.10.3, 500.10.4, 500.20.1, 500.20.2, 500.20.3, 500.20.4, 500.30.1, 500.30.2, 500.30.3, 500.30.4, 500.40.1, 500.40.2, 500.40.3, 500.40.4]
         trucks-count: [1, 2, 3, 4, 5]
-        steps: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+        steps: [0, 1, 2, 3, 4]
 
     steps:
       - name: Checkout repository
@@ -294,7 +295,7 @@ jobs:
           for i in $(seq $begin $end)
           do
             echo "RUN #$i"
-            for path in $(find problems/data/500.*.txt)
+            for path in $(find problems/data/${{ matrix.problem }}.txt)
             do
               execute "./min-timespan-delivery run $path --trucks-count ${{ matrix.trucks-count }} --disable-logging --extra ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
             done
@@ -306,7 +307,7 @@ jobs:
         uses: actions/upload-artifact@v4
         if: ${{ always() }}
         with:
-          name: output-${{ matrix.trucks-count }}-${{ matrix.steps }}
+          name: output-${{ matrix.problem }}-${{ matrix.trucks-count }}-${{ matrix.steps }}
           path: outputs/*
 
   solve-count-large:
