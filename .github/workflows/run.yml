@@ -54,7 +54,7 @@ jobs:
           submodules: recursive
 
       - name: Download executable
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v5
         with:
           name: executable
           path: .
