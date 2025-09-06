@@ -88,7 +88,7 @@ jobs:
             for path in $(find problems/data/*)
             do
               customers=$(grep -oP "(?<=customers )\d+" $path)
-              if [ $customers -lt 500 ]
+              if [ $customers -le 200 ]
               then
                 execute "./min-timespan-delivery run $path --disable-logging --extra ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
               fi
