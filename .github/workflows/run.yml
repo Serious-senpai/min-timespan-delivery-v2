@@ -66,8 +66,9 @@ jobs:
         run: |
           exitcode=0
           set +e
-          let begin=${{ matrix.steps }}+1
-          let end=$begin+0
+          let steps_per_run=1
+          let begin=$steps_per_run*${{ matrix.steps }}+1
+          let end=$begin+$steps_per_run-1
 
           execute() {
             command=$1
