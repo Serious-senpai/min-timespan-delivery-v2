@@ -46,7 +46,7 @@ jobs:
       fail-fast: false
       matrix:
         truck-capacity: [1400, 700, 350, 200, 100]
-        steps: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+        steps: [0, 1, 2, 3, 4]
 
     steps:
       - name: Checkout repository
@@ -180,7 +180,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        steps: [0, 1]
+        steps: [0, 1, 2, 3, 4]
 
     steps:
       - name: Checkout repository
@@ -201,7 +201,7 @@ jobs:
         run: |
           exitcode=0
           set +e
-          let steps_per_run=5
+          let steps_per_run=1
           let begin=$steps_per_run*${{ matrix.steps }}+1
           let end=$begin+$steps_per_run-1
 
@@ -274,7 +274,7 @@ jobs:
         run: |
           exitcode=0
           set +e
-          let steps_per_run=2
+          let steps_per_run=1
           let begin=$steps_per_run*${{ matrix.steps }}+1
           let end=$begin+$steps_per_run-1
 
@@ -339,7 +339,7 @@ jobs:
         run: |
           exitcode=0
           set +e
-          let steps_per_run=2
+          let steps_per_run=1
           let begin=$steps_per_run*${{ matrix.steps }}+1
           let end=$begin+$steps_per_run-1
 
