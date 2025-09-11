@@ -38,285 +38,14 @@ jobs:
           name: executable
           path: target/release/min-timespan-delivery
 
-  solve-capacity-small:
+  solve-count-medium-a:
     name: Run algorithm
     runs-on: ubuntu-latest
     needs: build
     strategy:
       fail-fast: false
       matrix:
-        truck-capacity: [1400, 700, 350, 200, 100]
-        steps: [0, 1, 2, 3, 4]
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v5
-        with:
-          submodules: recursive
-
-      - name: Download executable
-        uses: actions/download-artifact@v4
-        with:
-          name: executable
-          path: .
-
-      - name: Update permission
-        run: chmod +x min-timespan-delivery
-
-      - name: Run algorithm
-        run: |
-          exitcode=0
-          set +e
-          let steps_per_run=1
-          let begin=$steps_per_run*${{ matrix.steps }}+1
-          let end=$begin+$steps_per_run-1
-
-          execute() {
-            command=$1
-            echo "Running \"$command\""
-            $command
-
-            status=$?
-            if [ $status -ne 0 ]
-            then
-              echo "::error::\"$command\" exit with status $status"
-              exitcode=1
-            fi
-          }
-
-          sed -i 's/1400/${{ matrix.truck-capacity }}/g' problems/config_parameter/truck_config.json
-          for i in $(seq $begin $end)
-          do
-            echo "RUN #$i"
-            for path in $(find problems/data/*)
-            do
-              customers=$(grep -oP "(?<=customers )\d+" $path)
-              if [ $customers -le 500 ]
-              then
-                execute "./min-timespan-delivery run $path --disable-logging --extra ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
-              fi
-            done
-          done
-
-          exit $exitcode
-
-      - name: Upload results
-        uses: actions/upload-artifact@v4
-        if: ${{ always() }}
-        with:
-          name: output-${{ matrix.truck-capacity }}-${{ matrix.steps }}
-          path: outputs/*
-
-  solve-capacity-large:
-    name: Run algorithm
-    runs-on: ubuntu-latest
-    needs: build
-    strategy:
-      fail-fast: false
-      matrix:
-        problem: [1000.10.1, 1000.10.2, 1000.10.3, 1000.10.4, 1000.20.1, 1000.20.2, 1000.20.3, 1000.20.4, 1000.30.1, 1000.30.2, 1000.30.3, 1000.30.4, 1000.40.1, 1000.40.2, 1000.40.3, 1000.40.4]
-        truck-capacity: [1400, 700, 350, 200, 100]
-        steps: [0, 1, 2]
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v5
-        with:
-          submodules: recursive
-
-      - name: Download executable
-        uses: actions/download-artifact@v4
-        with:
-          name: executable
-          path: .
-
-      - name: Update permission
-        run: chmod +x min-timespan-delivery
-
-      - name: Run algorithm
-        run: |
-          exitcode=0
-          set +e
-          let steps_per_run=1
-          let begin=$steps_per_run*${{ matrix.steps }}+1
-          let end=$begin+$steps_per_run-1
-
-          execute() {
-            command=$1
-            echo "Running \"$command\""
-            $command
-
-            status=$?
-            if [ $status -ne 0 ]
-            then
-              echo "::error::\"$command\" exit with status $status"
-              exitcode=1
-            fi
-          }
-
-          sed -i 's/1400/${{ matrix.truck-capacity }}/g' problems/config_parameter/truck_config.json
-          for i in $(seq $begin $end)
-          do
-            echo "RUN #$i"
-            for path in $(find problems/data/${{ matrix.problem }}.txt)
-            do
-              execute "./min-timespan-delivery run $path --disable-logging --extra ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
-            done
-          done
-
-          exit $exitcode
-
-      - name: Upload results
-        uses: actions/upload-artifact@v4
-        if: ${{ always() }}
-        with:
-          name: output-${{ matrix.problem }}-${{ matrix.truck-capacity }}-${{ matrix.steps }}
-          path: outputs/*
-
-  solve-count-tiny:
-    name: Run algorithm
-    runs-on: ubuntu-latest
-    needs: build
-    strategy:
-      fail-fast: false
-      matrix:
-        steps: [0, 1, 2, 3, 4]
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v5
-        with:
-          submodules: recursive
-
-      - name: Download executable
-        uses: actions/download-artifact@v4
-        with:
-          name: executable
-          path: .
-
-      - name: Update permission
-        run: chmod +x min-timespan-delivery
-
-      - name: Run algorithm
-        run: |
-          exitcode=0
-          set +e
-          let steps_per_run=1
-          let begin=$steps_per_run*${{ matrix.steps }}+1
-          let end=$begin+$steps_per_run-1
-
-          execute() {
-            command=$1
-            echo "Running \"$command\""
-            $command
-
-            status=$?
-            if [ $status -ne 0 ]
-            then
-              echo "::error::\"$command\" exit with status $status"
-              exitcode=1
-            fi
-          }
-
-          for i in $(seq $begin $end)
-          do
-            echo "RUN #$i"
-            for path in $(find problems/data/*)
-            do
-              customers=$(grep -oP "(?<=customers )\d+" $path)
-              trucks_count=$(grep -oP "(?<=trucks_count )\d+" $path)
-
-              for trucks in $(seq $(( (trucks_count + 1) / 2 )) $(( trucks_count - 1 )))
-              do
-                if [ $customers -le 100 ]
-                then
-                  execute "./min-timespan-delivery run $path --trucks-count $trucks --disable-logging --extra ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
-                fi
-              done
-            done
-          done
-
-          exit $exitcode
-
-      - name: Upload results
-        uses: actions/upload-artifact@v4
-        if: ${{ always() }}
-        with:
-          name: output-${{ matrix.steps }}
-          path: outputs/*
-
-  solve-count-small:
-    name: Run algorithm
-    runs-on: ubuntu-latest
-    needs: build
-    strategy:
-      fail-fast: false
-      matrix:
-        trucks-count: [5, 6, 7, 8, 9]
-        steps: [0, 1, 2, 3, 4]
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v5
-        with:
-          submodules: recursive
-
-      - name: Download executable
-        uses: actions/download-artifact@v4
-        with:
-          name: executable
-          path: .
-
-      - name: Update permission
-        run: chmod +x min-timespan-delivery
-
-      - name: Run algorithm
-        run: |
-          exitcode=0
-          set +e
-          let steps_per_run=1
-          let begin=$steps_per_run*${{ matrix.steps }}+1
-          let end=$begin+$steps_per_run-1
-
-          execute() {
-            command=$1
-            echo "Running \"$command\""
-            $command
-
-            status=$?
-            if [ $status -ne 0 ]
-            then
-              echo "::error::\"$command\" exit with status $status"
-              exitcode=1
-            fi
-          }
-
-          for i in $(seq $begin $end)
-          do
-            echo "RUN #$i"
-            for path in $(find problems/data/200.*.txt)
-            do
-              execute "./min-timespan-delivery run $path --trucks-count ${{ matrix.trucks-count }} --disable-logging --extra ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
-            done
-          done
-
-          exit $exitcode
-
-      - name: Upload results
-        uses: actions/upload-artifact@v4
-        if: ${{ always() }}
-        with:
-          name: output-${{ matrix.trucks-count }}-${{ matrix.steps }}
-          path: outputs/*
-
-  solve-count-medium:
-    name: Run algorithm
-    runs-on: ubuntu-latest
-    needs: build
-    strategy:
-      fail-fast: false
-      matrix:
-        problem: [500.10.1, 500.10.2, 500.10.3, 500.10.4, 500.20.1, 500.20.2, 500.20.3, 500.20.4, 500.30.1, 500.30.2, 500.30.3, 500.30.4, 500.40.1, 500.40.2, 500.40.3, 500.40.4]
+        problem: [500.10.1, 500.10.2, 500.10.3, 500.10.4, 500.20.1, 500.20.2, 500.20.3, 500.20.4]
         trucks-count: [5, 6, 7, 8, 9]
         steps: [0, 1, 2, 3, 4]
 
@@ -374,16 +103,16 @@ jobs:
           name: output-${{ matrix.problem }}-${{ matrix.trucks-count }}-${{ matrix.steps }}
           path: outputs/*
 
-  solve-count-large:
+  solve-count-medium-b:
     name: Run algorithm
     runs-on: ubuntu-latest
     needs: build
     strategy:
       fail-fast: false
       matrix:
-        problem: [1000.10.1, 1000.10.2, 1000.10.3, 1000.10.4, 1000.20.1, 1000.20.2, 1000.20.3, 1000.20.4, 1000.30.1, 1000.30.2, 1000.30.3, 1000.30.4, 1000.40.1, 1000.40.2, 1000.40.3, 1000.40.4]
-        trucks-count: [8, 9, 10, 11, 12, 13, 14, 15]
-        steps: [0, 1]
+        problem: [500.30.1, 500.30.2, 500.30.3, 500.30.4, 500.40.1, 500.40.2, 500.40.3, 500.40.4]
+        trucks-count: [5, 6, 7, 8, 9]
+        steps: [0, 1, 2, 3, 4]
 
     steps:
       - name: Checkout repository
@@ -443,7 +172,7 @@ jobs:
     name: Summarize results
     runs-on: ubuntu-latest
     if: ${{ always() }}
-    needs: [solve-capacity-small, solve-capacity-large, solve-count-tiny, solve-count-small, solve-count-medium, solve-count-large]
+    needs: [solve-count-medium-a, solve-count-medium-b]
 
     steps:
       - name: Checkout repository
