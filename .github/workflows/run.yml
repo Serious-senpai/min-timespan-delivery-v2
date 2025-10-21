@@ -91,7 +91,7 @@ jobs:
               customers=$(grep -oP "(?<=customers )\d+" $path)
               if [ $customers -le 200 ]
               then
-                execute "./min-timespan-delivery run $path --config linear --disable-logging --extra ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+                execute "./min-timespan-delivery run $path --config linear --drone-cfg problems/config_parameter/drone_linear_config.json --disable-logging --extra ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
               fi
             done
           done
