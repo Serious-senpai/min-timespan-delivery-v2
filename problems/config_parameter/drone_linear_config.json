@@ -17,7 +17,7 @@
         "landingSpeed [m/s]": 7.8232,
         "cruiseAlt [m]": 50,
         "capacity [kg]": 2.27,
-        "batteryPower [Joule]": 904033,
+        "batteryPower [Joule]": 720000,
         "speed_type": "high",
         "range_type": "high",
         "beta(w/kg)": 24.2,
