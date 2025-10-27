@@ -33,7 +33,7 @@ jobs:
         run: target/release/min-timespan-delivery run --help
 
       - name: Upload executable
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: executable
           path: target/release/min-timespan-delivery
@@ -105,7 +105,7 @@ jobs:
           exit $exitcode
 
       - name: Upload results
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         if: ${{ always() }}
         with:
           name: output-${{ matrix.delta.trucks-count }}-${{ matrix.delta.drones-count }}-${{ matrix.steps }}
@@ -137,7 +137,7 @@ jobs:
         run: python scripts/summary.py
 
       - name: Upload summary files
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         if: ${{ always() }}
         with:
           name: summary-csv
