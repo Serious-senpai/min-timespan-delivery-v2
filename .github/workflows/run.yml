@@ -33,7 +33,7 @@ jobs:
         run: target/release/min-timespan-delivery run --help
 
       - name: Upload executable
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: executable
           path: target/release/min-timespan-delivery
@@ -99,7 +99,7 @@ jobs:
           exit $exitcode
 
       - name: Upload results
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         if: ${{ always() }}
         with:
           name: output-${{ matrix.steps }}
@@ -131,7 +131,7 @@ jobs:
         run: python scripts/summary.py
 
       - name: Upload summary files
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         if: ${{ always() }}
         with:
           name: summary-csv
@@ -140,7 +140,7 @@ jobs:
             outputs/summary.db
 
       - name: Upload everything
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         if: ${{ always() }}
         with:
           name: summary
