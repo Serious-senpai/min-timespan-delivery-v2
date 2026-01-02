@@ -604,22 +604,18 @@ pub static CONFIG: LazyLock<Config> = LazyLock::new(|| {
                                 parts[3].parse::<f64>(),
                             )
                         {
-                            if is_first_data_line {
-                                // First line is the depot
-                                x_coords.push(x_coord);
-                                y_coords.push(y_coord);
-                                demands_vec.push(demand);
-                                dronable_vec.push(true);
-                                release_dates_vec.push(release_date);
-                                is_first_data_line = false;
-                            } else {
+                            x_coords.push(x_coord);
+                            y_coords.push(y_coord);
+                            demands_vec.push(demand);
+                            dronable_vec.push(true);
+                            release_dates_vec.push(release_date);
+                            
+                            if !is_first_data_line {
                                 // Subsequent lines are customers
-                                x_coords.push(x_coord);
-                                y_coords.push(y_coord);
-                                demands_vec.push(demand);
-                                dronable_vec.push(true); // All customers are dronable
-                                release_dates_vec.push(release_date);
                                 customer_count += 1;
+                            } else {
+                                // First line is the depot
+                                is_first_data_line = false;
                             }
                         }
                     }

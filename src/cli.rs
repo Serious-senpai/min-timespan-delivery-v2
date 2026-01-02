@@ -217,7 +217,7 @@ pub enum Commands {
         drones_count: Option<usize>,
 
         /// The waiting time limit for each customer (in seconds).
-        #[arg(long, default_value_t = 36000.0)]
+        #[arg(long, default_value_t = 68.0)]
         waiting_time_limit: f64,
 
         /// Tabu search neighborhood selection strategy.
