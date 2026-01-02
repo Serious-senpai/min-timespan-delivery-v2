@@ -86,7 +86,7 @@ jobs:
           for i in $(seq $begin $end)
           do
             echo "RUN #$i"
-            for path in $(find problems/data_resupply_random/100/*) 
+            for path in $(find problems/data_resupply_random/30/*) 
             do
               customers=$(grep -oP "(?<=customers )\d+" $path)
               if [ $customers -le 200 ]
