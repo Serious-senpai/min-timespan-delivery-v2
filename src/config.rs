@@ -610,12 +610,12 @@ pub static CONFIG: LazyLock<Config> = LazyLock::new(|| {
                             dronable_vec.push(true);
                             release_dates_vec.push(release_date);
                             
-                            if !is_first_data_line {
-                                // Subsequent lines are customers
-                                customer_count += 1;
-                            } else {
+                            if is_first_data_line {
                                 // First line is the depot
                                 is_first_data_line = false;
+                            } else {
+                                // Subsequent lines are customers
+                                customer_count += 1;
                             }
                         }
                     }
