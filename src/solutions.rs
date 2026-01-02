@@ -129,7 +129,7 @@ impl Solution {
         let mut capacity_violation = 0.0;
         let mut waiting_time_violation = 0.0;
         let mut fixed_time_violation = 0.0;
-        
+
         // Calculate truck working times with context (sequential trips)
         // working_time of a truck = end time of its last trip
         let mut truck_working_time = vec![];
@@ -137,22 +137,20 @@ impl Solution {
             let mut prev_end_time = 0.0;
             let mut vehicle_end_time = 0.0;
             for route in routes {
-                let trip_end_time = TruckRoute::calculate_working_time_with_context(
-                    &route.data().customers,
-                    prev_end_time,
-                );
-                vehicle_end_time = trip_end_time;  // Last trip end time is vehicle end time
+                let trip_end_time =
+                    TruckRoute::calculate_working_time_with_context(&route.data().customers, prev_end_time);
+                vehicle_end_time = trip_end_time; // Last trip end time is vehicle end time
                 prev_end_time = vehicle_end_time;
             }
             working_time = working_time.max(vehicle_end_time);
             truck_working_time.push(vehicle_end_time);
-            
+
             for route in routes {
                 capacity_violation += route.capacity_violation() / CONFIG.truck.capacity;
                 waiting_time_violation += route.waiting_time_violation();
             }
         }
-        
+
         // Calculate drone working times with context (not sequential, take max)
         // working_time of a drone = max of all its trip end times
         let mut drone_working_time = vec![];
@@ -160,16 +158,14 @@ impl Solution {
             let mut prev_end_time = 0.0;
             let mut vehicle_max_time: f64 = 0.0;
             for route in routes {
-                let trip_end_time = DroneRoute::calculate_working_time_with_context(
-                    &route.data().customers,
-                    prev_end_time,
-                );
+                let trip_end_time =
+                    DroneRoute::calculate_working_time_with_context(&route.data().customers, prev_end_time);
                 vehicle_max_time = vehicle_max_time.max(trip_end_time);
                 prev_end_time = trip_end_time;
             }
             working_time = working_time.max(vehicle_max_time);
             drone_working_time.push(vehicle_max_time);
-            
+
             for route in routes {
                 energy_violation += route.energy_violation;
                 capacity_violation += route.capacity_violation() / CONFIG.drone.capacity();
@@ -910,7 +906,7 @@ impl Solution {
             _total_vehicle += usize::from(!drone.is_empty());
         }
         // let base_hyperparameter = CONFIG.customers_count as f64 / total_vehicle as f64;
-        let base_hyperparameter =1.0;
+        let base_hyperparameter = 1.0;
         let tabu_size = (CONFIG.tabu_size_factor * base_hyperparameter) as usize;
 
         let adaptive_iterations = (CONFIG.adaptive_iterations as f64 * base_hyperparameter) as usize;

@@ -706,13 +706,13 @@ impl TruckRoute {
             }
             distance / speed
         };
-        
+
         // Calculate max release date of all customers in the route
         let mut max_release_date: f64 = 0.0;
         for &customer in customers.iter().skip(1).take(customers.len() - 2) {
             max_release_date = max_release_date.max(CONFIG.release_dates[customer]);
         }
-        
+
         // working_time = max(release_date, prev_end_time) + travel_time
         max_release_date.max(prev_end_time) + travel_time
     }
@@ -720,13 +720,13 @@ impl TruckRoute {
     fn _construct(data: _RouteData) -> Self {
         let speed = CONFIG.truck.speed;
         let travel_time = data.value.distance / speed;
-        
+
         // Calculate max release date of all customers in the route
         let mut max_release_date: f64 = 0.0;
         for &customer in data.customers.iter().skip(1).take(data.customers.len() - 2) {
             max_release_date = max_release_date.max(CONFIG.release_dates[customer]);
         }
-        
+
         // working_time = max(release_date) + travel_time (when prev_end_time is 0)
         let _working_time = max_release_date + travel_time;
         let _capacity_violation = (data.value.weight - CONFIG.truck.capacity).max(0.0);
@@ -813,24 +813,22 @@ impl DroneRoute {
     pub fn calculate_working_time_with_context(customers: &[usize], prev_end_time: f64) -> f64 {
         let drone = &CONFIG.drone;
         let distances = &CONFIG.drone_distances;
-        
+
         let travel_time = {
             let mut distance = 0.0;
             for i in 0..customers.len() - 1 {
                 distance += distances[customers[i]][customers[i + 1]];
             }
-            (drone.takeoff_time() + drone.landing_time()).mul_add(
-                customers.len() as f64 - 1.0,
-                drone.cruise_time(distance),
-            )
+            (drone.takeoff_time() + drone.landing_time())
+                .mul_add(customers.len() as f64 - 1.0, drone.cruise_time(distance))
         };
-        
+
         // Calculate max release date of all customers in the route
         let mut max_release_date: f64 = 0.0;
         for &customer in customers.iter().skip(1).take(customers.len() - 2) {
             max_release_date = max_release_date.max(CONFIG.release_dates[customer]);
         }
-        
+
         // working_time = max(release_date, prev_end_time) + travel_time
         max_release_date.max(prev_end_time) + travel_time
     }
@@ -844,16 +842,16 @@ impl DroneRoute {
             customers.len() as f64 - 1.0,
             CONFIG.drone.cruise_time(data.value.distance),
         );
-        
+
         // Calculate max release date of all customers in the route
         let mut max_release_date: f64 = 0.0;
         for &customer in customers.iter().skip(1).take(customers.len() - 2) {
             max_release_date = max_release_date.max(CONFIG.release_dates[customer]);
         }
-        
+
         // working_time = max(release_date) + travel_time (when prev_end_time is 0)
         let _working_time = max_release_date + travel_time;
-        
+
         let _capacity_violation = (data.value.weight - CONFIG.drone.capacity()).max(0.0);
 
         let mut time = 0.0;

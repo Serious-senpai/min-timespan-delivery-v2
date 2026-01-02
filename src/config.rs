@@ -563,7 +563,7 @@ pub static CONFIG: LazyLock<Config> = LazyLock::new(|| {
             // Check if this is a RC format file
             let is_rc_format = lines.iter().any(|line| line.contains("number_truck"));
 
-            let (trucks_count, drones_count, x, y, demands, mut dronable, customers_count, release_dates) = 
+            let (trucks_count, drones_count, x, y, demands, mut dronable, customers_count, release_dates) =
                 if is_rc_format {
                     // Parse RC format file (RC101_3.dat style)
                     let mut file_trucks_count = 0;
@@ -609,7 +609,7 @@ pub static CONFIG: LazyLock<Config> = LazyLock::new(|| {
                             demands_vec.push(demand);
                             dronable_vec.push(true);
                             release_dates_vec.push(release_date);
-                            
+
                             if is_first_data_line {
                                 // First line is the depot
                                 is_first_data_line = false;
@@ -620,7 +620,16 @@ pub static CONFIG: LazyLock<Config> = LazyLock::new(|| {
                         }
                     }
 
-                    (trucks_count_val, drones_count_val, x_coords, y_coords, demands_vec, dronable_vec, customer_count, release_dates_vec)
+                    (
+                        trucks_count_val,
+                        drones_count_val,
+                        x_coords,
+                        y_coords,
+                        demands_vec,
+                        dronable_vec,
+                        customer_count,
+                        release_dates_vec,
+                    )
                 } else {
                     // Parse original format
                     let trucks_count_regex = Regex::new(r"trucks_count (\d+)").unwrap();
@@ -673,7 +682,16 @@ pub static CONFIG: LazyLock<Config> = LazyLock::new(|| {
                     }
 
                     let release_dates = vec![0.0]; // Default for depot
-                    (trucks_count_val, drones_count_val, x, y, demands, dronable, customers_count, release_dates)
+                    (
+                        trucks_count_val,
+                        drones_count_val,
+                        x,
+                        y,
+                        demands,
+                        dronable,
+                        customers_count,
+                        release_dates,
+                    )
                 };
 
             let truck_distances = truck_distance.matrix(&x, &y);
