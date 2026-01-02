@@ -902,12 +902,12 @@ impl Solution {
     }
 
     pub fn tabu_search(root: Self, logger: &mut Logger) -> Self {
-        let mut total_vehicle = 0;
+        let mut _total_vehicle = 0;
         for truck in &root.truck_routes {
-            total_vehicle += usize::from(!truck.is_empty());
+            _total_vehicle += usize::from(!truck.is_empty());
         }
         for drone in &root.drone_routes {
-            total_vehicle += usize::from(!drone.is_empty());
+            _total_vehicle += usize::from(!drone.is_empty());
         }
         // let base_hyperparameter = CONFIG.customers_count as f64 / total_vehicle as f64;
         let base_hyperparameter =1.0;

@@ -563,7 +563,7 @@ pub static CONFIG: LazyLock<Config> = LazyLock::new(|| {
             // Check if this is a RC format file
             let is_rc_format = lines.iter().any(|line| line.contains("number_truck"));
 
-            let (trucks_count, drones_count, mut x, mut y, mut demands, mut dronable, customers_count, mut release_dates) = 
+            let (trucks_count, drones_count, x, y, demands, mut dronable, customers_count, release_dates) = 
                 if is_rc_format {
                     // Parse RC format file (RC101_3.dat style)
                     let mut file_trucks_count = 0;
@@ -596,36 +596,33 @@ pub static CONFIG: LazyLock<Config> = LazyLock::new(|| {
                     // Parse data section - first line in data is the depot
                     for line in lines.iter().skip(data_start_idx) {
                         let parts: Vec<&str> = line.split_whitespace().collect();
-                        if parts.len() >= 4 {
-                            if let (Ok(x_coord), Ok(y_coord), Ok(demand), Ok(release_date)) = (
+                        if parts.len() >= 4
+                            && let (Ok(x_coord), Ok(y_coord), Ok(demand), Ok(release_date)) = (
                                 parts[0].parse::<f64>(),
                                 parts[1].parse::<f64>(),
                                 parts[2].parse::<f64>(),
                                 parts[3].parse::<f64>(),
-                            ) {
-                                if is_first_data_line {
-                                    // First line is the depot
-                                    eprintln!("DEPOT: index=0, x={}, y={}, demand={}, release_date={}", x_coord, y_coord, demand, release_date);
-                                    x_coords.push(x_coord);
-                                    y_coords.push(y_coord);
-                                    demands_vec.push(demand);
-                                    dronable_vec.push(true);
-                                    release_dates_vec.push(release_date);
-                                    is_first_data_line = false;
-                                } else {
-                                    // Subsequent lines are customers
-                                    eprintln!("CUSTOMER: index={}, x={}, y={}, demand={}, release_date={}", customer_count + 1, x_coord, y_coord, demand, release_date);
-                                    x_coords.push(x_coord);
-                                    y_coords.push(y_coord);
-                                    demands_vec.push(demand);
-                                    dronable_vec.push(true); // All customers are dronable
-                                    release_dates_vec.push(release_date);
-                                    customer_count += 1;
-                                }
+                            )
+                        {
+                            if is_first_data_line {
+                                // First line is the depot
+                                x_coords.push(x_coord);
+                                y_coords.push(y_coord);
+                                demands_vec.push(demand);
+                                dronable_vec.push(true);
+                                release_dates_vec.push(release_date);
+                                is_first_data_line = false;
+                            } else {
+                                // Subsequent lines are customers
+                                x_coords.push(x_coord);
+                                y_coords.push(y_coord);
+                                demands_vec.push(demand);
+                                dronable_vec.push(true); // All customers are dronable
+                                release_dates_vec.push(release_date);
+                                customer_count += 1;
                             }
                         }
                     }
-                    eprintln!("Total customers read: {}", customer_count);
 
                     (trucks_count_val, drones_count_val, x_coords, y_coords, demands_vec, dronable_vec, customer_count, release_dates_vec)
                 } else {
@@ -679,11 +676,9 @@ pub static CONFIG: LazyLock<Config> = LazyLock::new(|| {
                         demands.push(_demand.parse::<f64>().unwrap());
                     }
 
-                    let mut release_dates = vec![0.0]; // Default for depot
+                    let release_dates = vec![0.0]; // Default for depot
                     (trucks_count_val, drones_count_val, x, y, demands, dronable, customers_count, release_dates)
                 };
-
-            let customers_count = customers_count;
 
             let truck_distances = truck_distance.matrix(&x, &y);
             let drone_distances = drone_distance.matrix(&x, &y);
