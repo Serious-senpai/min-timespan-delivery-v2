@@ -272,7 +272,7 @@ if __name__ == "__main__":
                             config["truck"]["V_max (m/s)"],
                             config["drone"]["_data"].get("FixedTime (s)", -1),
                             config["drone"]["_data"].get("V_max (m/s)", -1),
-                            data["solution"]["working_time"] / 60,
+                            data["solution"]["working_time"],
                             milp_data["Optimal"],
                             milp_data["Solve_Time"],
                             milp_data["status"],
