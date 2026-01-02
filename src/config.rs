@@ -345,6 +345,7 @@ pub struct SerializedConfig {
     y: Vec<f64>,
     demands: Vec<f64>,
     dronable: Vec<bool>,
+    release_dates: Vec<f64>,
 
     truck_distance: cli::DistanceType,
     drone_distance: cli::DistanceType,
@@ -388,6 +389,7 @@ pub struct Config {
     pub y: Vec<f64>,
     pub demands: Vec<f64>,
     pub dronable: Vec<bool>,
+    pub release_dates: Vec<f64>,
 
     pub truck_distance: cli::DistanceType,
     pub drone_distance: cli::DistanceType,
@@ -436,6 +438,7 @@ impl From<SerializedConfig> for Config {
             y: config.y,
             demands: config.demands,
             dronable: config.dronable,
+            release_dates: config.release_dates,
             truck_distance: config.truck_distance,
             drone_distance: config.drone_distance,
             truck_distances,
@@ -480,7 +483,8 @@ impl From<Config> for SerializedConfig {
             y: config.y,
             demands: config.demands,
             dronable: config.dronable,
-            truck_distance: config.truck_distance,
+            release_dates: config.release_dates,
+            truck_distance: config.truck_distance, //mahatan or euclid
             drone_distance: config.drone_distance,
             truck: config.truck,
             drone: config.drone,
@@ -553,56 +557,133 @@ pub static CONFIG: LazyLock<Config> = LazyLock::new(|| {
             dry_run,
             extra,
         } => {
-            let trucks_count_regex = Regex::new(r"trucks_count (\d+)").unwrap();
-            let drones_count_regex = Regex::new(r"drones_count (\d+)").unwrap();
-            let depot_regex = Regex::new(r"depot (-?[\d\.]+)\s+(-?[\d\.]+)").unwrap();
-            let customers_regex = RegexBuilder::new(r"^\s*(-?[\d\.]+)\s+(-?[\d\.]+)\s+(0|1)\s+([\d\.]+)\s*$")
-                .multi_line(true)
-                .build()
-                .unwrap();
-
             let data = fs::read_to_string(&problem).unwrap();
+            let lines: Vec<&str> = data.lines().collect();
 
-            let trucks_count = trucks_count
-                .or_else(|| {
-                    trucks_count_regex
+            // Check if this is a RC format file
+            let is_rc_format = lines.iter().any(|line| line.contains("number_truck"));
+
+            let (trucks_count, drones_count, mut x, mut y, mut demands, mut dronable, customers_count, mut release_dates) = 
+                if is_rc_format {
+                    // Parse RC format file (RC101_3.dat style)
+                    let mut file_trucks_count = 0;
+                    let mut file_drones_count = 0;
+                    let mut data_start_idx = 0;
+
+                    // Parse header
+                    for (idx, line) in lines.iter().enumerate() {
+                        if line.contains("number_truck") {
+                            file_trucks_count = line.split_whitespace().nth(1).unwrap_or("0").parse().unwrap_or(0);
+                        } else if line.contains("number_drone") {
+                            file_drones_count = line.split_whitespace().nth(1).unwrap_or("0").parse().unwrap_or(0);
+                        } else if line.contains("XCOORD") {
+                            data_start_idx = idx + 1;
+                            break;
+                        }
+                    }
+
+                    let trucks_count_val = trucks_count.unwrap_or(file_trucks_count);
+                    let drones_count_val = drones_count.unwrap_or(file_drones_count);
+
+                    let mut x_coords = vec![];
+                    let mut y_coords = vec![];
+                    let mut demands_vec = vec![];
+                    let mut dronable_vec = vec![];
+                    let mut release_dates_vec = vec![];
+                    let mut customer_count = 0;
+                    let mut is_first_data_line = true;
+
+                    // Parse data section - first line in data is the depot
+                    for line in lines.iter().skip(data_start_idx) {
+                        let parts: Vec<&str> = line.split_whitespace().collect();
+                        if parts.len() >= 4 {
+                            if let (Ok(x_coord), Ok(y_coord), Ok(demand), Ok(release_date)) = (
+                                parts[0].parse::<f64>(),
+                                parts[1].parse::<f64>(),
+                                parts[2].parse::<f64>(),
+                                parts[3].parse::<f64>(),
+                            ) {
+                                if is_first_data_line {
+                                    // First line is the depot
+                                    eprintln!("DEPOT: index=0, x={}, y={}, demand={}, release_date={}", x_coord, y_coord, demand, release_date);
+                                    x_coords.push(x_coord);
+                                    y_coords.push(y_coord);
+                                    demands_vec.push(demand);
+                                    dronable_vec.push(true);
+                                    release_dates_vec.push(release_date);
+                                    is_first_data_line = false;
+                                } else {
+                                    // Subsequent lines are customers
+                                    eprintln!("CUSTOMER: index={}, x={}, y={}, demand={}, release_date={}", customer_count + 1, x_coord, y_coord, demand, release_date);
+                                    x_coords.push(x_coord);
+                                    y_coords.push(y_coord);
+                                    demands_vec.push(demand);
+                                    dronable_vec.push(true); // All customers are dronable
+                                    release_dates_vec.push(release_date);
+                                    customer_count += 1;
+                                }
+                            }
+                        }
+                    }
+                    eprintln!("Total customers read: {}", customer_count);
+
+                    (trucks_count_val, drones_count_val, x_coords, y_coords, demands_vec, dronable_vec, customer_count, release_dates_vec)
+                } else {
+                    // Parse original format
+                    let trucks_count_regex = Regex::new(r"trucks_count (\d+)").unwrap();
+                    let drones_count_regex = Regex::new(r"drones_count (\d+)").unwrap();
+                    let depot_regex = Regex::new(r"depot (-?[\d\.]+)\s+(-?[\d\.]+)").unwrap();
+                    let customers_regex = RegexBuilder::new(r"^\s*(-?[\d\.]+)\s+(-?[\d\.]+)\s+(0|1)\s+([\d\.]+)\s*$")
+                        .multi_line(true)
+                        .build()
+                        .unwrap();
+
+                    let trucks_count_val = trucks_count
+                        .or_else(|| {
+                            trucks_count_regex
+                                .captures(&data)
+                                .and_then(|caps| caps.get(1))
+                                .and_then(|m| m.as_str().parse::<usize>().ok())
+                        })
+                        .expect("Missing trucks count");
+                    let drones_count_val = drones_count
+                        .or_else(|| {
+                            drones_count_regex
+                                .captures(&data)
+                                .and_then(|caps| caps.get(1))
+                                .and_then(|m| m.as_str().parse::<usize>().ok())
+                        })
+                        .expect("Missing drones count");
+
+                    let depot = depot_regex
                         .captures(&data)
-                        .and_then(|caps| caps.get(1))
-                        .and_then(|m| m.as_str().parse::<usize>().ok())
-                })
-                .expect("Missing trucks count");
-            let drones_count = drones_count
-                .or_else(|| {
-                    drones_count_regex
-                        .captures(&data)
-                        .and_then(|caps| caps.get(1))
-                        .and_then(|m| m.as_str().parse::<usize>().ok())
-                })
-                .expect("Missing drones count");
+                        .and_then(|caps| {
+                            let x = caps.get(1)?.as_str().parse::<f64>().ok()?;
+                            let y = caps.get(2)?.as_str().parse::<f64>().ok()?;
+                            Some((x, y))
+                        })
+                        .expect("Missing depot coordinates");
 
-            let depot = depot_regex
-                .captures(&data)
-                .and_then(|caps| {
-                    let x = caps.get(1)?.as_str().parse::<f64>().ok()?;
-                    let y = caps.get(2)?.as_str().parse::<f64>().ok()?;
-                    Some((x, y))
-                })
-                .expect("Missing depot coordinates");
+                    let mut customers_count = 0;
+                    let mut x = vec![depot.0];
+                    let mut y = vec![depot.1];
+                    let mut demands = vec![0.0];
+                    let mut dronable = vec![true];
+                    for c in customers_regex.captures_iter(&data) {
+                        customers_count += 1;
 
-            let mut customers_count = 0;
-            let mut x = vec![depot.0];
-            let mut y = vec![depot.1];
-            let mut demands = vec![0.0];
-            let mut dronable = vec![true];
-            for c in customers_regex.captures_iter(&data) {
-                customers_count += 1;
+                        let (_, [_x, _y, _dronable, _demand]) = c.extract::<4>();
+                        x.push(_x.parse::<f64>().unwrap());
+                        y.push(_y.parse::<f64>().unwrap());
+                        dronable.push(matches!(_dronable, "1"));
+                        demands.push(_demand.parse::<f64>().unwrap());
+                    }
 
-                let (_, [_x, _y, _dronable, _demand]) = c.extract::<4>();
-                x.push(_x.parse::<f64>().unwrap());
-                y.push(_y.parse::<f64>().unwrap());
-                dronable.push(matches!(_dronable, "1"));
-                demands.push(_demand.parse::<f64>().unwrap());
-            }
+                    let mut release_dates = vec![0.0]; // Default for depot
+                    (trucks_count_val, drones_count_val, x, y, demands, dronable, customers_count, release_dates)
+                };
+
+            let customers_count = customers_count;
 
             let truck_distances = truck_distance.matrix(&x, &y);
             let drone_distances = drone_distance.matrix(&x, &y);
@@ -640,6 +721,7 @@ pub static CONFIG: LazyLock<Config> = LazyLock::new(|| {
                 y,
                 demands,
                 dronable,
+                release_dates,
                 truck_distance,
                 drone_distance,
                 truck_distances,

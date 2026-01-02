@@ -129,27 +129,54 @@ impl Solution {
         let mut capacity_violation = 0.0;
         let mut waiting_time_violation = 0.0;
         let mut fixed_time_violation = 0.0;
+        
+        // Calculate truck working times with context (sequential trips)
+        // working_time of a truck = end time of its last trip
+        let mut truck_working_time = vec![];
         for routes in &truck_routes {
-            working_time = working_time.max(routes.iter().map(|r| r.working_time()).sum());
-            capacity_violation += routes.iter().map(|r| r.capacity_violation()).sum::<f64>() / CONFIG.truck.capacity;
-            waiting_time_violation += routes.iter().map(|r| r.waiting_time_violation()).sum::<f64>();
+            let mut prev_end_time = 0.0;
+            let mut vehicle_end_time = 0.0;
+            for route in routes {
+                let trip_end_time = TruckRoute::calculate_working_time_with_context(
+                    &route.data().customers,
+                    prev_end_time,
+                );
+                vehicle_end_time = trip_end_time;  // Last trip end time is vehicle end time
+                prev_end_time = vehicle_end_time;
+            }
+            working_time = working_time.max(vehicle_end_time);
+            truck_working_time.push(vehicle_end_time);
+            
+            for route in routes {
+                capacity_violation += route.capacity_violation() / CONFIG.truck.capacity;
+                waiting_time_violation += route.waiting_time_violation();
+            }
         }
+        
+        // Calculate drone working times with context (not sequential, take max)
+        // working_time of a drone = max of all its trip end times
+        let mut drone_working_time = vec![];
         for routes in &drone_routes {
-            working_time = working_time.max(routes.iter().map(|r| r.working_time()).sum::<f64>());
-            energy_violation += routes.iter().map(|r| r.energy_violation).sum::<f64>();
-            capacity_violation += routes.iter().map(|r| r.capacity_violation()).sum::<f64>() / CONFIG.drone.capacity();
-            waiting_time_violation += routes.iter().map(|r| r.waiting_time_violation()).sum::<f64>();
-            fixed_time_violation += routes.iter().map(|r| r.fixed_time_violation).sum::<f64>();
+            let mut prev_end_time = 0.0;
+            let mut vehicle_max_time: f64 = 0.0;
+            for route in routes {
+                let trip_end_time = DroneRoute::calculate_working_time_with_context(
+                    &route.data().customers,
+                    prev_end_time,
+                );
+                vehicle_max_time = vehicle_max_time.max(trip_end_time);
+                prev_end_time = trip_end_time;
+            }
+            working_time = working_time.max(vehicle_max_time);
+            drone_working_time.push(vehicle_max_time);
+            
+            for route in routes {
+                energy_violation += route.energy_violation;
+                capacity_violation += route.capacity_violation() / CONFIG.drone.capacity();
+                waiting_time_violation += route.waiting_time_violation();
+                fixed_time_violation += route.fixed_time_violation;
+            }
         }
-
-        let truck_working_time = truck_routes
-            .iter()
-            .map(|r| r.iter().map(|r| r.working_time()).sum())
-            .collect();
-        let drone_working_time = drone_routes
-            .iter()
-            .map(|r| r.iter().map(|r| r.working_time()).sum())
-            .collect();
 
         energy_violation /= CONFIG.drone.battery();
         waiting_time_violation /= CONFIG.waiting_time_limit;
@@ -882,7 +909,8 @@ impl Solution {
         for drone in &root.drone_routes {
             total_vehicle += usize::from(!drone.is_empty());
         }
-        let base_hyperparameter = CONFIG.customers_count as f64 / total_vehicle as f64;
+        // let base_hyperparameter = CONFIG.customers_count as f64 / total_vehicle as f64;
+        let base_hyperparameter =1.0;
         let tabu_size = (CONFIG.tabu_size_factor * base_hyperparameter) as usize;
 
         let adaptive_iterations = (CONFIG.adaptive_iterations as f64 * base_hyperparameter) as usize;

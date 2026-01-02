@@ -165,7 +165,7 @@ pub enum Commands {
         tabu_size_factor: f64,
 
         /// Number of non-improved iterations per adaptive segment = [--adaptive-iterations] * [Base]
-        #[arg(long, default_value_t = 60)]
+        #[arg(long, default_value_t = 5)]
         adaptive_iterations: usize,
 
         /// Fixed number of iterations per adaptive segment = [--adaptive-iterations] * [Base]
@@ -174,7 +174,7 @@ pub enum Commands {
 
         /// Number of non-improved segments before resetting the current solution = [--adaptive-segments]
         /// (note: in "adaptive" strategy, "--reset-after-factor" is ignored)
-        #[arg(long, default_value_t = 7)]
+        #[arg(long, default_value_t = 2)]
         adaptive_segments: usize,
 
         /// Infer --adaptive-segments as a fixed number of segments per reset.
@@ -199,7 +199,9 @@ pub enum Commands {
         range_type: ConfigType,
 
         /// Distance type to use for trucks.
-        #[arg(long, default_value_t = DistanceType::Euclidean)]
+        // #[arg(long, default_value_t = DistanceType::Euclidean)]
+        // truck_distance: DistanceType,
+        #[arg(long, default_value_t = DistanceType::Manhattan)]
         truck_distance: DistanceType,
 
         /// Distance type to use for drones.
@@ -215,7 +217,7 @@ pub enum Commands {
         drones_count: Option<usize>,
 
         /// The waiting time limit for each customer (in seconds).
-        #[arg(long, default_value_t = 3600.0)]
+        #[arg(long, default_value_t = 36000.0)]
         waiting_time_limit: f64,
 
         /// Tabu search neighborhood selection strategy.
