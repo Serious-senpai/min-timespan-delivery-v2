@@ -86,7 +86,7 @@ jobs:
           for i in $(seq $begin $end)
           do
             echo "RUN #$i"
-            for path in $(find problems/data_resupply_random/100 -maxdepth 1 -name "*.dat" | sort)
+            for path in $(find problems/data_resupply_random/50 -maxdepth 1 -name "*.dat" | sort)
             do
               execute "./min-timespan-delivery run $path --disable-logging --extra ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
             done
