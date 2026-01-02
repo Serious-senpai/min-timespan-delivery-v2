@@ -86,13 +86,9 @@ jobs:
           for i in $(seq $begin $end)
           do
             echo "RUN #$i"
-            for path in $(find problems/data_resupply_random/30/*) 
+            for path in $(find problems/data_resupply_random/30 -maxdepth 1 -name "*.dat" | sort)
             do
-              customers=$(grep -oP "(?<=customers )\d+" $path)
-              if [ $customers -le 200 ]
-              then
-                execute "./min-timespan-delivery run $path --disable-logging --extra ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
-              fi
+              execute "./min-timespan-delivery run $path --disable-logging --extra ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
             done
           done
 
@@ -104,6 +100,7 @@ jobs:
         with:
           name: output-${{ matrix.steps }}
           path: outputs/*
+          if-no-files-found: ignore
 
   summary:
     name: Summarize results
