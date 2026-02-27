@@ -54,7 +54,7 @@ jobs:
           submodules: recursive
 
       - name: Download executable
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           name: executable
           path: .
@@ -110,14 +110,14 @@ jobs:
         uses: actions/checkout@v6
 
       - name: Download results
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           path: outputs/
           pattern: output-*
           merge-multiple: true
 
       - name: Download executable
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           name: executable
           path: .
