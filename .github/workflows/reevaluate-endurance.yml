@@ -86,7 +86,7 @@ jobs:
             echo "RUN #$i"
             for path in $(find problems/data/*)
             do
-              execute "nice -n -20./min-timespan-delivery run $path --config endurance --disable-logging --extra ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+              execute "nice -n -20 ./min-timespan-delivery run $path --config endurance --disable-logging --extra ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
             done
           done
 
