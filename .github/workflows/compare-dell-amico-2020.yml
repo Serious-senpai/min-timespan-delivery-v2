@@ -103,7 +103,7 @@ jobs:
           for i in $(seq $begin $end)
           do
             echo "RUN #$i"
-            execute "./min-timespan-delivery $arguments --disable-logging --extra ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+            execute "nice -n -20./min-timespan-delivery $arguments --disable-logging --extra ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
           done
 
           exit $exitcode
