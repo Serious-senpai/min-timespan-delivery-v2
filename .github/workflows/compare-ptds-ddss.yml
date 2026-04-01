@@ -93,7 +93,7 @@ jobs:
             for i in $(seq $begin $end)
             do
               echo "RUN #$i"
-              execute "nice -n -20 ./min-timespan-delivery $arguments ${{ inputs.extra-arguments }} --single-truck-route --disable-logging --extra ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+              execute "sudo nice -n -20 ./min-timespan-delivery $arguments ${{ inputs.extra-arguments }} --single-truck-route --disable-logging --extra ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
             done
           done
 
